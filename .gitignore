@@ -1,0 +1,8 @@
+bin/
+obj/
+*.bak.exe
+*.old.exe
+*.user
+*.suo
+.vs/
+.CommandCode/

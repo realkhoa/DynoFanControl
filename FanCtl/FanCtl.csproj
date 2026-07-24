@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x64</Platforms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Management" Version="10.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="ec-probe.exe" CopyToOutputDirectory="PreserveNewest" Condition="Exists('ec-probe.exe')" />
+    <Content Include="WinRing0x64.sys" CopyToOutputDirectory="PreserveNewest" Condition="Exists('WinRing0x64.sys')" />
+  </ItemGroup>
+
+</Project>
