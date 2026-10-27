@@ -75,8 +75,15 @@ public class FanViewModel : INotifyPropertyChanged
         _pollTimer.Start();
 
         // 4. Initial poll & apply saved state
-        PollHardware();
-        ApplyInitialState();
+        try
+        {
+            PollHardware();
+            ApplyInitialState();
+        }
+        catch
+        {
+            // Initial poll error suppressed; timer will retry
+        }
     }
 
     #region Properties

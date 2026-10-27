@@ -12,6 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Resource Include="app.ico" Condition="Exists('app.ico')" />
     <PackageReference Include="System.Management" Version="10.0.10" />
   </ItemGroup>
 

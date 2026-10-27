@@ -60,6 +60,9 @@ public sealed class TrayIconManager : IDisposable
     [DllImport("user32.dll")]
     private static extern bool SetForegroundWindow(IntPtr hWnd);
 
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr LoadIcon(IntPtr hInstance, IntPtr lpIconName);
+
     private readonly Window _parentWindow;
     private readonly ContextMenu _contextMenu;
     private IntPtr _hwnd;
@@ -77,28 +80,39 @@ public sealed class TrayIconManager : IDisposable
 
     public void Initialize()
     {
-        var helper = new WindowInteropHelper(_parentWindow);
-        _hwnd = helper.EnsureHandle();
-
-        var source = HwndSource.FromHwnd(_hwnd);
-        source?.AddHook(WndProc);
-
-        // Load Icon from executable or fallback
-        var exePath = Environment.ProcessPath ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "FanCtl.exe");
-        _hIcon = ExtractIcon(IntPtr.Zero, exePath, 0);
-
-        var nid = new NOTIFYICONDATA
+        try
         {
-            cbSize = (uint)Marshal.SizeOf<NOTIFYICONDATA>(),
-            hWnd = _hwnd,
-            uID = 1001,
-            uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP,
-            uCallbackMessage = WM_TRAYICON,
-            hIcon = _hIcon,
-            szTip = "FanCtl — Acer Nitro 5"
-        };
+            var helper = new WindowInteropHelper(_parentWindow);
+            _hwnd = helper.EnsureHandle();
 
-        _isAdded = Shell_NotifyIcon(NIM_ADD, ref nid);
+            var source = HwndSource.FromHwnd(_hwnd);
+            source?.AddHook(WndProc);
+
+            // Load Icon from executable or fallback
+            var exePath = Environment.ProcessPath ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "FanCtl.exe");
+            _hIcon = ExtractIcon(IntPtr.Zero, exePath, 0);
+            if (_hIcon == IntPtr.Zero)
+            {
+                _hIcon = LoadIcon(IntPtr.Zero, (IntPtr)32512); // IDI_APPLICATION
+            }
+
+            var nid = new NOTIFYICONDATA
+            {
+                cbSize = (uint)Marshal.SizeOf<NOTIFYICONDATA>(),
+                hWnd = _hwnd,
+                uID = 1001,
+                uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP,
+                uCallbackMessage = WM_TRAYICON,
+                hIcon = _hIcon,
+                szTip = "FanCtl — Acer Nitro 5"
+            };
+
+            _isAdded = Shell_NotifyIcon(NIM_ADD, ref nid);
+        }
+        catch
+        {
+            // Suppress tray initialization errors
+        }
     }
 
     public void UpdateTooltip(string text)

@@ -14,12 +14,23 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         // 1. Single Instance Check
-        _mutex = new Mutex(true, MutexName, out bool isNewInstance);
-        if (!isNewInstance)
+        try
         {
-            // Another instance is already active
-            Shutdown();
-            return;
+            _mutex = new Mutex(true, MutexName, out bool isNewInstance);
+            if (!isNewInstance)
+            {
+                // Another instance is already active
+                Shutdown();
+                return;
+            }
+        }
+        catch (AbandonedMutexException)
+        {
+            // Previous crashed instance abandoned mutex; safe to continue
+        }
+        catch
+        {
+            // Ignore mutex errors on non-standard environments
         }
 
         // 2. Check command line flags

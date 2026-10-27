@@ -4,7 +4,6 @@
         xmlns:local="clr-namespace:FanCtl"
         xmlns:vm="clr-namespace:FanCtl.ViewModels"
         Title="FanCtl — Acer Nitro 5"
-        Icon="app.ico"
         Height="620" Width="540"
         MinHeight="580" MinWidth="500"
         WindowStartupLocation="CenterScreen"

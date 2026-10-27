@@ -16,6 +16,15 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        try
+        {
+            var iconUri = new Uri("pack://application:,,,/app.ico", UriKind.RelativeOrAbsolute);
+            Icon = System.Windows.Media.Imaging.BitmapFrame.Create(iconUri);
+        }
+        catch
+        {
+            // Ignore icon loading error
+        }
         _vm = new FanViewModel();
         DataContext = _vm;
     }
@@ -23,18 +32,25 @@ public partial class MainWindow : Window
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
         // Setup System Tray
-        if (FindResource("TrayMenu") is ContextMenu menu)
+        try
         {
-            menu.DataContext = _vm;
-            _tray = new TrayIconManager(this, menu);
-            _tray.OnOpenRequested += RestoreWindow;
-            _tray.Initialize();
+            if (FindResource("TrayMenu") is ContextMenu menu)
+            {
+                menu.DataContext = _vm;
+                _tray = new TrayIconManager(this, menu);
+                _tray.OnOpenRequested += RestoreWindow;
+                _tray.Initialize();
 
-            _vm.TooltipUpdateRequested += text => _tray.UpdateTooltip(text);
+                _vm.TooltipUpdateRequested += text => _tray.UpdateTooltip(text);
+            }
+        }
+        catch
+        {
+            // Ignore tray setup error
         }
 
-        // Check if started minimized to tray
-        if (App.StartMinimized || _vm.StartMinimized)
+        // Only start minimized if explicitly passed via command line argument (--minimized)
+        if (App.StartMinimized)
         {
             Hide();
             WindowState = WindowState.Minimized;
