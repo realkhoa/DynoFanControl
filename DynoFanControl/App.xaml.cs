@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows;
 using DynoFanControl.Hardware;
@@ -9,6 +10,15 @@ public partial class App : Application
     private const string MutexName = "Global\\DynoFanControl_Nitro_SingleInstance_Mutex";
     private Mutex? _mutex;
 
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    private static extern uint RegisterWindowMessage(string lpString);
+
+    [DllImport("user32.dll")]
+    private static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    private static readonly IntPtr HWND_BROADCAST = (IntPtr)0xffff;
+    public static readonly uint WM_SHOWME = RegisterWindowMessage("DynoFanControl_SHOWME_MSG");
+
     public static bool StartMinimized { get; private set; }
 
     protected override void OnStartup(StartupEventArgs e)
@@ -19,7 +29,8 @@ public partial class App : Application
             _mutex = new Mutex(true, MutexName, out bool isNewInstance);
             if (!isNewInstance)
             {
-                // Another instance is already active
+                // Another instance is already active: tell it to restore and bring to front
+                PostMessage(HWND_BROADCAST, WM_SHOWME, IntPtr.Zero, IntPtr.Zero);
                 Shutdown();
                 return;
             }

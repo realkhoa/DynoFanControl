@@ -31,6 +31,15 @@ public partial class MainWindow : Window
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
+        // Setup Window Message Hook for Single-Instance Activation
+        try
+        {
+            var helper = new System.Windows.Interop.WindowInteropHelper(this);
+            var source = System.Windows.Interop.HwndSource.FromHwnd(helper.EnsureHandle());
+            source?.AddHook(WndProc);
+        }
+        catch { }
+
         // Setup System Tray
         try
         {
@@ -57,6 +66,16 @@ public partial class MainWindow : Window
         }
     }
 
+    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if ((uint)msg == App.WM_SHOWME)
+        {
+            RestoreWindow();
+            handled = true;
+        }
+        return IntPtr.Zero;
+    }
+
     private void Window_Closing(object sender, CancelEventArgs e)
     {
         if (!_isExplicitExit && _vm.CloseToTray)
@@ -75,6 +94,8 @@ public partial class MainWindow : Window
         if (WindowState == WindowState.Minimized)
             WindowState = WindowState.Normal;
         Activate();
+        Topmost = true;
+        Topmost = false;
         Focus();
     }
 
