@@ -1,13 +1,69 @@
-﻿using System.Configuration;
-using System.Data;
+using System.Threading;
 using System.Windows;
+using FanCtl.Hardware;
 
 namespace FanCtl;
 
-/// <summary>
-/// Interaction logic for App.xaml
-/// </summary>
 public partial class App : Application
 {
-}
+    private const string MutexName = "Global\\FanCtl_AcerNitro5_SingleInstance_Mutex";
+    private Mutex? _mutex;
 
+    public static bool StartMinimized { get; private set; }
+
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        // 1. Single Instance Check
+        _mutex = new Mutex(true, MutexName, out bool isNewInstance);
+        if (!isNewInstance)
+        {
+            // Another instance is already active
+            Shutdown();
+            return;
+        }
+
+        // 2. Check command line flags
+        foreach (var arg in e.Args)
+        {
+            if (arg.Equals("--minimized", StringComparison.OrdinalIgnoreCase) ||
+                arg.Equals("/minimized", StringComparison.OrdinalIgnoreCase) ||
+                arg.Equals("-m", StringComparison.OrdinalIgnoreCase))
+            {
+                StartMinimized = true;
+            }
+        }
+
+        // 3. Register Failsafe Hardware Reset Handlers
+        AppDomain.CurrentDomain.ProcessExit += (_, _) => OnEmergencyExit();
+        AppDomain.CurrentDomain.UnhandledException += (_, _) => OnEmergencyExit();
+        DispatcherUnhandledException += (_, args) =>
+        {
+            OnEmergencyExit();
+            // Don't crash abruptly without restoring fan control
+            args.Handled = false;
+        };
+
+        base.OnStartup(e);
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        OnEmergencyExit();
+        _mutex?.ReleaseMutex();
+        _mutex?.Dispose();
+        base.OnExit(e);
+    }
+
+    private static void OnEmergencyExit()
+    {
+        try
+        {
+            FanHardwareManager.Instance.EmergencyResetToAuto();
+            FanHardwareManager.Instance.Dispose();
+        }
+        catch
+        {
+            // Suppress teardown errors
+        }
+    }
+}

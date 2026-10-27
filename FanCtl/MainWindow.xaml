@@ -2,159 +2,482 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:FanCtl"
+        xmlns:vm="clr-namespace:FanCtl.ViewModels"
         Title="FanCtl — Acer Nitro 5"
-        Height="430" Width="500"
+        Icon="app.ico"
+        Height="620" Width="540"
+        MinHeight="580" MinWidth="500"
         WindowStartupLocation="CenterScreen"
-        ResizeMode="CanMinimize"
-        Background="#f5f5f5"
-        Foreground="#222"
+        Background="#121316"
+        Foreground="#ECEFF1"
         FontFamily="Segoe UI, sans-serif"
         FontSize="13"
-        SnapsToDevicePixels="True">
+        SnapsToDevicePixels="True"
+        UseLayoutRounding="True"
+        Loaded="Window_Loaded"
+        Closing="Window_Closing">
+
     <Window.Resources>
         <local:InverseBoolConverter x:Key="InverseBool"/>
+        <local:BoolToVisibilityConverter x:Key="BoolToVis"/>
         <local:BoolToAutoManualConverter x:Key="AutoManual"/>
+        <local:TempToBrushConverter x:Key="TempBrush"/>
+        <local:StringEqualsConverter x:Key="StrEquals"/>
 
-        <Style TargetType="Button" x:Key="AutoBtn">
-            <Setter Property="Height" Value="28"/>
-            <Setter Property="Width" Value="72"/>
+        <!-- Modern Button Styles -->
+        <Style x:Key="BaseBtn" TargetType="Button">
+            <Setter Property="Background" Value="#252830"/>
+            <Setter Property="Foreground" Value="#ECEFF1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#323642"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#2F333E"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#E53935"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#1F2228"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
+        <Style x:Key="ModeBtn" TargetType="Button" BasedOn="{StaticResource BaseBtn}">
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="2,0"/>
+        </Style>
+
+        <Style x:Key="ChipBtn" TargetType="Button" BasedOn="{StaticResource BaseBtn}">
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="3,0"/>
+            <Setter Property="Background" Value="#1E2026"/>
+            <Setter Property="BorderBrush" Value="#2D3039"/>
+        </Style>
+
+        <Style x:Key="TurboBtn" TargetType="Button" BasedOn="{StaticResource BaseBtn}">
+            <Setter Property="Background" Value="#E53935"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#FF5252"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="b" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="Background" Value="#F44336"/>
+                                <Setter TargetName="b" Property="BorderBrush" Value="#FF8A80"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Slider Style -->
         <Style TargetType="Slider">
             <Setter Property="Minimum" Value="0"/>
             <Setter Property="Maximum" Value="100"/>
             <Setter Property="TickFrequency" Value="10"/>
-            <Setter Property="TickPlacement" Value="BottomRight"/>
+            <Setter Property="Height" Value="30"/>
             <Setter Property="IsSnapToTickEnabled" Value="False"/>
-            <Setter Property="Height" Value="32"/>
         </Style>
+
+        <!-- Context Menu for Tray -->
+        <ContextMenu x:Key="TrayMenu">
+            <MenuItem Header="Show FanCtl" FontWeight="Bold" Click="TrayShow_Click"/>
+            <Separator/>
+            <MenuItem Header="● Auto Mode (BIOS)" Click="TrayMode_Click" Tag="Auto"/>
+            <MenuItem Header="● Silent Mode (30%)" Click="TrayMode_Click" Tag="Silent"/>
+            <MenuItem Header="● Balanced Mode (60%)" Click="TrayMode_Click" Tag="Balanced"/>
+            <MenuItem Header="● Smart Curve" Click="TrayMode_Click" Tag="Curve"/>
+            <MenuItem Header="🔥 Max Turbo (100%)" Click="TrayMode_Click" Tag="Turbo"/>
+            <Separator/>
+            <MenuItem Header="❄ CoolBoost" IsCheckable="True" IsChecked="{Binding CoolBoost, Mode=TwoWay}"/>
+            <Separator/>
+            <MenuItem Header="Exit FanCtl" Click="TrayExit_Click"/>
+        </ContextMenu>
     </Window.Resources>
 
-    <Grid Margin="14">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+    <Grid>
+        <!-- Main Content -->
+        <Grid Margin="16,14,16,10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- Header -->
+                <RowDefinition Height="Auto"/> <!-- Telemetry / Temp Cards -->
+                <RowDefinition Height="Auto"/> <!-- Global Presets & Turbo -->
+                <RowDefinition Height="*"/>    <!-- Fan Controls (CPU & GPU) -->
+                <RowDefinition Height="Auto"/> <!-- Curve / Settings Expander -->
+                <RowDefinition Height="Auto"/> <!-- Footer / Status -->
+            </Grid.RowDefinitions>
 
-        <!-- Header -->
-        <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="14,12" Margin="0,0,0,10"
-                BorderBrush="#ddd" BorderThickness="1">
-            <Grid>
+            <!-- 0. Header -->
+            <Border Grid.Row="0" Background="#181A20" CornerRadius="10" Padding="14,10" Margin="0,0,0,10"
+                    BorderBrush="#262933" BorderThickness="1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Background="#E53935" CornerRadius="6" Width="28" Height="28" Margin="0,0,10,0">
+                            <TextBlock Text="⚡" FontSize="16" Foreground="White"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="FanCtl" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                                <Border Background="#2B2E38" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="NITRO 5" FontSize="9" FontWeight="Bold" Foreground="#E53935"/>
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Text="Acer Nitro AN515-45 • EC Hardware Control" FontSize="11" Foreground="#78909C"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Style="{StaticResource BaseBtn}" Height="30" Padding="10,0" Margin="4,0"
+                                Click="CurveToggle_Click" ToolTip="Custom Fan Curve Editor">
+                            <TextBlock Text="📈 Curves" FontSize="11" FontWeight="SemiBold"/>
+                        </Button>
+                        <Button Style="{StaticResource BaseBtn}" Height="30" Width="32" Margin="4,0"
+                                Click="SettingsToggle_Click" ToolTip="Application Settings">
+                            <TextBlock Text="⚙" FontSize="14"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- 1. Telemetry / Temperature Cards -->
+            <Grid Grid.Row="1" Margin="0,0,0,10">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="FanCtl" FontSize="18" FontWeight="SemiBold" Foreground="#333"/>
-                    <TextBlock Text="Acer Nitro AN515-45" FontSize="11" Foreground="#888"/>
+
+                <!-- CPU Sensor Card -->
+                <Border Grid.Column="0" Background="#181A20" CornerRadius="8" Padding="12,10" Margin="0,0,5,0"
+                        BorderBrush="#262933" BorderThickness="1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="CPU TEMPERATURE" FontSize="10" FontWeight="SemiBold" Foreground="#78909C"/>
+                            <TextBlock Text="{Binding CpuTempText}" FontSize="24" FontWeight="Bold"
+                                       Foreground="{Binding CpuTemp, Converter={StaticResource TempBrush}}" Margin="0,2,0,0"/>
+                            <TextBlock Text="AMD Ryzen 5 5600H" FontSize="10" Foreground="#546E7A"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <TextBlock Text="TACHOMETER" FontSize="9" Foreground="#78909C" HorizontalAlignment="Right"/>
+                            <TextBlock Text="{Binding CpuFanRpmText}" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="#CFD8DC" HorizontalAlignment="Right" Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- GPU Sensor Card -->
+                <Border Grid.Column="1" Background="#181A20" CornerRadius="8" Padding="12,10" Margin="5,0,0,0"
+                        BorderBrush="#262933" BorderThickness="1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="GPU TEMPERATURE" FontSize="10" FontWeight="SemiBold" Foreground="#78909C"/>
+                            <TextBlock Text="{Binding GpuTempText}" FontSize="24" FontWeight="Bold"
+                                       Foreground="{Binding GpuTemp, Converter={StaticResource TempBrush}}" Margin="0,2,0,0"/>
+                            <TextBlock Text="NVIDIA GTX 1650" FontSize="10" Foreground="#546E7A"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <TextBlock Text="TACHOMETER" FontSize="9" Foreground="#78909C" HorizontalAlignment="Right"/>
+                            <TextBlock Text="{Binding GpuFanRpmText}" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="#CFD8DC" HorizontalAlignment="Right" Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- 2. Mode Presets & Turbo -->
+            <Border Grid.Row="2" Background="#181A20" CornerRadius="8" Padding="10,8" Margin="0,0,0,10"
+                    BorderBrush="#262933" BorderThickness="1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Presets -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Style="{StaticResource ModeBtn}" Content="AUTO" Click="Mode_Click" Tag="Auto"/>
+                        <Button Style="{StaticResource ModeBtn}" Content="SILENT" Click="Mode_Click" Tag="Silent"/>
+                        <Button Style="{StaticResource ModeBtn}" Content="BALANCED" Click="Mode_Click" Tag="Balanced"/>
+                        <Button Style="{StaticResource ModeBtn}" Content="CURVE" Click="Mode_Click" Tag="Curve"/>
+                    </StackPanel>
+
+                    <!-- Right Options & Turbo -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Link Fans Toggle -->
+                        <CheckBox Content="Link Fans" IsChecked="{Binding LinkFans, Mode=TwoWay}"
+                                  Foreground="#B0BEC5" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                        <!-- CoolBoost Toggle -->
+                        <CheckBox Content="CoolBoost" IsChecked="{Binding CoolBoost, Mode=TwoWay}"
+                                  Foreground="#B0BEC5" VerticalAlignment="Center" Margin="0,0,14,0"/>
+
+                        <!-- Turbo Button -->
+                        <Button Style="{StaticResource TurboBtn}" Width="78" Height="30"
+                                Content="🔥 TURBO" Click="Turbo_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- 3. Fan Controls (CPU & GPU) -->
+            <StackPanel Grid.Row="3">
+                <!-- CPU Fan Card -->
+                <Border Background="#181A20" CornerRadius="8" Padding="14,10" Margin="0,0,0,10"
+                        BorderBrush="#262933" BorderThickness="1">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="CPU FAN" FontSize="12" FontWeight="Bold" Foreground="#ECEFF1"/>
+                                <TextBlock Text="{Binding CpuFanSpeed, StringFormat='— {0}%'}" FontSize="13"
+                                           FontWeight="SemiBold" Foreground="#E53935" Margin="6,0,0,0"/>
+                                <TextBlock Text="{Binding CpuFanRpmText, StringFormat='({0})'}" FontSize="11"
+                                           Foreground="#78909C" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Auto/Manual Toggle -->
+                            <Button Grid.Column="2" Content="{Binding CpuFanAuto, Converter={StaticResource AutoManual}}"
+                                    Style="{StaticResource BaseBtn}" Height="24" Padding="10,0" FontSize="10" FontWeight="Bold"
+                                    Click="CpuAutoToggle_Click"/>
+                        </Grid>
+
+                        <!-- Slider -->
+                        <Slider x:Name="CpuSlider" Value="{Binding CpuFanSpeed, Mode=TwoWay}"
+                                IsEnabled="{Binding CpuFanAuto, Converter={StaticResource InverseBool}}"
+                                PreviewMouseLeftButtonDown="CpuSlider_Down"
+                                PreviewMouseLeftButtonUp="CpuSlider_Up"
+                                Margin="0,4"/>
+
+                        <!-- Quick Preset Chips -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,2,0,0">
+                            <TextBlock Text="Quick:" FontSize="10" Foreground="#546E7A" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <Button Style="{StaticResource ChipBtn}" Content="30%" Click="CpuChip_Click" Tag="30"/>
+                            <Button Style="{StaticResource ChipBtn}" Content="50%" Click="CpuChip_Click" Tag="50"/>
+                            <Button Style="{StaticResource ChipBtn}" Content="75%" Click="CpuChip_Click" Tag="75"/>
+                            <Button Style="{StaticResource ChipBtn}" Content="100%" Click="CpuChip_Click" Tag="100"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- GPU Fan Card -->
+                <Border Background="#181A20" CornerRadius="8" Padding="14,10" Margin="0,0,0,10"
+                        BorderBrush="#262933" BorderThickness="1">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="GPU FAN" FontSize="12" FontWeight="Bold" Foreground="#ECEFF1"/>
+                                <TextBlock Text="{Binding GpuFanSpeed, StringFormat='— {0}%'}" FontSize="13"
+                                           FontWeight="SemiBold" Foreground="#00E5FF" Margin="6,0,0,0"/>
+                                <TextBlock Text="{Binding GpuFanRpmText, StringFormat='({0})'}" FontSize="11"
+                                           Foreground="#78909C" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Auto/Manual Toggle -->
+                            <Button Grid.Column="2" Content="{Binding GpuFanAuto, Converter={StaticResource AutoManual}}"
+                                    Style="{StaticResource BaseBtn}" Height="24" Padding="10,0" FontSize="10" FontWeight="Bold"
+                                    Click="GpuAutoToggle_Click"/>
+                        </Grid>
+
+                        <!-- Slider -->
+                        <Slider x:Name="GpuSlider" Value="{Binding GpuFanSpeed, Mode=TwoWay}"
+                                IsEnabled="{Binding GpuFanAuto, Converter={StaticResource InverseBool}}"
+                                PreviewMouseLeftButtonDown="GpuSlider_Down"
+                                PreviewMouseLeftButtonUp="GpuSlider_Up"
+                                Margin="0,4"/>
+
+                        <!-- Quick Preset Chips -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,2,0,0">
+                            <TextBlock Text="Quick:" FontSize="10" Foreground="#546E7A" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <Button Style="{StaticResource ChipBtn}" Content="30%" Click="GpuChip_Click" Tag="30"/>
+                            <Button Style="{StaticResource ChipBtn}" Content="50%" Click="GpuChip_Click" Tag="50"/>
+                            <Button Style="{StaticResource ChipBtn}" Content="75%" Click="GpuChip_Click" Tag="75"/>
+                            <Button Style="{StaticResource ChipBtn}" Content="100%" Click="GpuChip_Click" Tag="100"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- 4. Curve Panel (Collapsible) -->
+            <Border Grid.Row="4" Background="#181A20" CornerRadius="8" Padding="12" Margin="0,0,0,10"
+                    BorderBrush="#303440" BorderThickness="1"
+                    Visibility="{Binding IsCurveEditorOpen, Converter={StaticResource BoolToVis}}">
+                <StackPanel>
+                    <Grid Margin="0,0,0,8">
+                        <TextBlock Text="SMART FAN CURVE CONFIGURATION" FontSize="11" FontWeight="Bold" Foreground="#90A4AE"/>
+                        <Button Content="✕" HorizontalAlignment="Right" Style="{StaticResource BaseBtn}"
+                                Width="22" Height="22" Padding="0" Click="CurveToggle_Click"/>
+                    </Grid>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock Text="Curve Profile:" FontSize="11" Foreground="#B0BEC5" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <Button Style="{StaticResource ChipBtn}" Content="Silent" Click="CurveProfile_Click" Tag="Silent"/>
+                        <Button Style="{StaticResource ChipBtn}" Content="Balanced" Click="CurveProfile_Click" Tag="Balanced"/>
+                        <Button Style="{StaticResource ChipBtn}" Content="Gaming" Click="CurveProfile_Click" Tag="Gaming"/>
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding CurvePoints}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="6"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#22252D" CornerRadius="6" Padding="6" Margin="2">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="{Binding Temperature, StringFormat='{}{0}°C'}" FontSize="11" FontWeight="Bold" Foreground="#90A4AE" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="➔" FontSize="9" Foreground="#546E7A" HorizontalAlignment="Center" Margin="0,1"/>
+                                        <TextBlock Text="{Binding FanSpeed, StringFormat='{}{0}%'}" FontSize="12" FontWeight="Bold" Foreground="#E53935" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
-            </Grid>
-        </Border>
+            </Border>
 
-        <!-- Temps -->
-        <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="14,10" Margin="0,0,0,8"
-                BorderBrush="#ddd" BorderThickness="1">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <ItemsControl ItemsSource="{Binding Temps}" Margin="0,0,8,0">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Background="#f0f4ff" CornerRadius="6" Padding="12,8" Margin="4,0">
-                                <StackPanel>
-                                    <TextBlock Text="{Binding Label}" FontSize="10" Foreground="#666"/>
-                                    <TextBlock Text="{Binding Value}" FontSize="20" FontWeight="Bold" Foreground="#d32f2f"/>
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-                <TextBlock Grid.Column="1" Text="{Binding SensorCountText}" FontSize="10"
-                           Foreground="#aaa" VerticalAlignment="Center" HorizontalAlignment="Right"/>
-            </Grid>
-        </Border>
+            <!-- 5. Status Footer -->
+            <Border Grid.Row="5" Background="#16181E" CornerRadius="6" Padding="12,6"
+                    BorderBrush="#252731" BorderThickness="1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-        <!-- Fan 1 -->
-        <Border Grid.Row="2" Background="White" CornerRadius="8" Padding="14,10" Margin="0,0,0,8"
-                BorderBrush="#ddd" BorderThickness="1">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="70"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="CPU" FontSize="11" Foreground="#888"/>
-                    <TextBlock Text="{Binding Fan0Speed, StringFormat='{}{0}%'}"
-                               FontSize="24" FontWeight="SemiBold" Foreground="#333"/>
-                </StackPanel>
-                <Slider Grid.Column="1" Margin="10,0" x:Name="Slider0"
-                        Value="{Binding Fan0Speed, Mode=TwoWay}"
-                        IsEnabled="{Binding Fan0Auto, Converter={StaticResource InverseBool}}"
-                        PreviewMouseLeftButtonDown="Slider0_Down"
-                        PreviewMouseLeftButtonUp="Slider0_Up"/>
-                <Button Grid.Column="2" Content="{Binding Fan0Auto, Converter={StaticResource AutoManual}}"
-                        Style="{StaticResource AutoBtn}" Click="Toggle0_Click"
-                        Background="#e8e8e8" Foreground="#333"/>
-            </Grid>
-        </Border>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse Width="7" Height="7" Fill="#00E676" Margin="0,0,6,0"/>
+                        <TextBlock Text="{Binding BackendStatusText}" FontSize="10" Foreground="#90A4AE"/>
+                    </StackPanel>
 
-        <!-- Fan 2 -->
-        <Border Grid.Row="3" Background="White" CornerRadius="8" Padding="14,10" Margin="0,0,0,8"
-                BorderBrush="#ddd" BorderThickness="1">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="70"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="GPU" FontSize="11" Foreground="#888"/>
-                    <TextBlock Text="{Binding Fan1Speed, StringFormat='{}{0}%'}"
-                               FontSize="24" FontWeight="SemiBold" Foreground="#333"/>
-                </StackPanel>
-                <Slider Grid.Column="1" Margin="10,0" x:Name="Slider1"
-                        Value="{Binding Fan1Speed, Mode=TwoWay}"
-                        IsEnabled="{Binding Fan1Auto, Converter={StaticResource InverseBool}}"
-                        PreviewMouseLeftButtonDown="Slider1_Down"
-                        PreviewMouseLeftButtonUp="Slider1_Up"/>
-                <Button Grid.Column="2" Content="{Binding Fan1Auto, Converter={StaticResource AutoManual}}"
-                        Style="{StaticResource AutoBtn}" Click="Toggle1_Click"
-                        Background="#e8e8e8" Foreground="#333"/>
-            </Grid>
-        </Border>
+                    <TextBlock Grid.Column="1" Text="{Binding StatusText}" FontSize="11"
+                               Foreground="#B0BEC5" VerticalAlignment="Center" Margin="12,0" TextTrimming="CharacterEllipsis"/>
 
-        <!-- Footer -->
-        <Border Grid.Row="4" Background="#eee" CornerRadius="6" Padding="12,6"
-                VerticalAlignment="Bottom" Height="34" BorderBrush="#ddd" BorderThickness="0">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <Button Content="TURBO" Click="Turbo_Click"
-                        Height="24" Width="60" Cursor="Hand"
-                        Background="#d32f2f" Foreground="White" BorderThickness="0"
-                        FontSize="10" FontWeight="Bold"/>
-                <TextBlock Grid.Column="1" Text="{Binding StatusText}" FontSize="11"
-                           Foreground="#888" VerticalAlignment="Center" Margin="10,0"/>
-                <TextBlock Grid.Column="2" Text="v1.3" FontSize="10" Foreground="#bbb" VerticalAlignment="Center"/>
-            </Grid>
-        </Border>
+                    <TextBlock Grid.Column="2" Text="v2.0 Nitro" FontSize="10" Foreground="#546E7A" VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Settings Modal Overlay -->
+        <Grid Background="#B0000000" Visibility="{Binding IsSettingsOpen, Converter={StaticResource BoolToVis}}">
+            <Border Background="#1C1E24" CornerRadius="12" Padding="20" Width="440" Height="420"
+                    BorderBrush="#373B47" BorderThickness="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Title -->
+                    <Grid Grid.Row="0" Margin="0,0,0,16">
+                        <TextBlock Text="Application Settings" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                        <Button Content="✕" HorizontalAlignment="Right" Style="{StaticResource BaseBtn}"
+                                Width="26" Height="26" Padding="0" Click="SettingsToggle_Click"/>
+                    </Grid>
+
+                    <!-- Settings Body -->
+                    <StackPanel Grid.Row="1">
+                        <!-- Startup -->
+                        <CheckBox Content="Start with Windows (Task Scheduler, no UAC prompt)"
+                                  IsChecked="{Binding StartWithWindows, Mode=TwoWay}"
+                                  Foreground="#ECEFF1" Margin="0,0,0,12"/>
+
+                        <!-- Start Minimized -->
+                        <CheckBox Content="Start Minimized to System Tray"
+                                  IsChecked="{Binding StartMinimized, Mode=TwoWay}"
+                                  Foreground="#ECEFF1" Margin="0,0,0,12"/>
+
+                        <!-- Close to Tray -->
+                        <CheckBox Content="Closing window minimizes to System Tray"
+                                  IsChecked="{Binding CloseToTray, Mode=TwoWay}"
+                                  Foreground="#ECEFF1" Margin="0,0,0,16"/>
+
+                        <Separator Background="#2A2D37" Margin="0,0,0,16"/>
+
+                        <!-- Overheat Protection -->
+                        <CheckBox Content="Enable Overheat Failsafe Protection"
+                                  IsChecked="{Binding OverheatProtection, Mode=TwoWay}"
+                                  Foreground="#ECEFF1" Margin="0,0,0,8"/>
+
+                        <TextBlock Text="Force 100% fans when temperature exceeds threshold to prevent throttling:"
+                                   FontSize="10" Foreground="#78909C" Margin="0,0,0,6"/>
+
+                        <Grid Margin="0,0,0,16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Slider Minimum="75" Maximum="95" Value="{Binding OverheatThreshold, Mode=TwoWay}"
+                                    IsEnabled="{Binding OverheatProtection}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding OverheatThreshold, StringFormat='{}{0}°C'}"
+                                       FontSize="12" FontWeight="Bold" Foreground="#E53935"
+                                       VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        </Grid>
+
+                        <Separator Background="#2A2D37" Margin="0,0,0,12"/>
+
+                        <!-- Diagnostics Info -->
+                        <TextBlock Text="Hardware Diagnostics:" FontSize="10" FontWeight="Bold" Foreground="#78909C" Margin="0,0,0,4"/>
+                        <TextBlock Text="{Binding BackendStatusText, StringFormat='EC Backend: {0}'}" FontSize="10" Foreground="#B0BEC5"/>
+                        <TextBlock Text="Model: Acer Nitro AN515-45 • CPU: Ryzen 5 5600H • GPU: GTX 1650" FontSize="10" Foreground="#B0BEC5"/>
+                    </StackPanel>
+
+                    <!-- Save / Close -->
+                    <Button Grid.Row="2" Style="{StaticResource BaseBtn}" Height="32" Content="Done"
+                            HorizontalAlignment="Right" Width="80" Click="SettingsToggle_Click"/>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </Window>

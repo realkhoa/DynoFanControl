@@ -1,11 +1,17 @@
+using System.ComponentModel;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
+using FanCtl.Services;
+using FanCtl.ViewModels;
 
 namespace FanCtl;
 
 public partial class MainWindow : Window
 {
     private readonly FanViewModel _vm;
+    private TrayIconManager? _tray;
+    private bool _isExplicitExit;
 
     public MainWindow()
     {
@@ -14,38 +20,137 @@ public partial class MainWindow : Window
         DataContext = _vm;
     }
 
-    private void Toggle0_Click(object sender, RoutedEventArgs e)
+    private void Window_Loaded(object sender, RoutedEventArgs e)
     {
-        _vm.Fan0Auto = !_vm.Fan0Auto;
+        // Setup System Tray
+        if (FindResource("TrayMenu") is ContextMenu menu)
+        {
+            menu.DataContext = _vm;
+            _tray = new TrayIconManager(this, menu);
+            _tray.OnOpenRequested += RestoreWindow;
+            _tray.Initialize();
+
+            _vm.TooltipUpdateRequested += text => _tray.UpdateTooltip(text);
+        }
+
+        // Check if started minimized to tray
+        if (App.StartMinimized || _vm.StartMinimized)
+        {
+            Hide();
+            WindowState = WindowState.Minimized;
+        }
     }
 
-    private void Toggle1_Click(object sender, RoutedEventArgs e)
+    private void Window_Closing(object sender, CancelEventArgs e)
     {
-        _vm.Fan1Auto = !_vm.Fan1Auto;
+        if (!_isExplicitExit && _vm.CloseToTray)
+        {
+            e.Cancel = true;
+            Hide();
+            return;
+        }
+
+        _tray?.Dispose();
+    }
+
+    public void RestoreWindow()
+    {
+        Show();
+        if (WindowState == WindowState.Minimized)
+            WindowState = WindowState.Normal;
+        Activate();
+        Focus();
+    }
+
+    #region UI Event Handlers
+
+    private void Mode_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button b && b.Tag is string mode)
+            _vm.SetMode(mode);
     }
 
     private void Turbo_Click(object sender, RoutedEventArgs e)
     {
-        _vm.Turbo();
+        _vm.ToggleTurbo();
     }
 
-    private void Slider0_Down(object sender, MouseButtonEventArgs e)
+    private void CpuAutoToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.CpuFanAuto = !_vm.CpuFanAuto;
+    }
+
+    private void GpuAutoToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.GpuFanAuto = !_vm.GpuFanAuto;
+    }
+
+    private void CpuSlider_Down(object sender, MouseButtonEventArgs e)
     {
         _vm.SliderDragStarted(0);
     }
 
-    private void Slider0_Up(object sender, MouseButtonEventArgs e)
+    private void CpuSlider_Up(object sender, MouseButtonEventArgs e)
     {
         _vm.SliderDragCompleted(0);
     }
 
-    private void Slider1_Down(object sender, MouseButtonEventArgs e)
+    private void GpuSlider_Down(object sender, MouseButtonEventArgs e)
     {
         _vm.SliderDragStarted(1);
     }
 
-    private void Slider1_Up(object sender, MouseButtonEventArgs e)
+    private void GpuSlider_Up(object sender, MouseButtonEventArgs e)
     {
         _vm.SliderDragCompleted(1);
     }
+
+    private void CpuChip_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button b && b.Tag is string s && int.TryParse(s, out var speed))
+            _vm.SetFixedSpeed(0, speed);
+    }
+
+    private void GpuChip_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button b && b.Tag is string s && int.TryParse(s, out var speed))
+            _vm.SetFixedSpeed(1, speed);
+    }
+
+    private void CurveToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.IsCurveEditorOpen = !_vm.IsCurveEditorOpen;
+    }
+
+    private void CurveProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button b && b.Tag is string profile)
+            _vm.ActiveCurvePreset = profile;
+    }
+
+    private void SettingsToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.IsSettingsOpen = !_vm.IsSettingsOpen;
+    }
+
+    private void TrayShow_Click(object sender, RoutedEventArgs e)
+    {
+        RestoreWindow();
+    }
+
+    private void TrayMode_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem item && item.Tag is string mode)
+            _vm.SetMode(mode);
+    }
+
+    private void TrayExit_Click(object sender, RoutedEventArgs e)
+    {
+        _isExplicitExit = true;
+        _tray?.Dispose();
+        Close();
+        Application.Current.Shutdown();
+    }
+
+    #endregion
 }
