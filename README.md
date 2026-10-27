@@ -12,7 +12,7 @@ Acer Nitro laptops often suffer from bloated, heavy background services (such as
 - **Advanced Multi-Sensor Telemetry**: Direct native NVIDIA Management Library (`nvml.dll`) integration for discrete GPU core temp, utilization (%), and power draw (W), combined with `LibreHardwareMonitorLib` for AMD Ryzen 5 5600H CPU package/cores, integrated Radeon APU, NVMe SSD storage, and ACPI thermal zones.
 - **Dual fan control**: Independent or linked CPU and GPU fan speed regulation (Auto, Silent 30%, Balanced 60%, Custom Manual, or Max Turbo).
 - **Acer CoolBoost™ integration**: Direct EC register manipulation for increased fan speed ceiling.
-- **Smart Temperature Curves**: Automatic fan speed modulation with exponential temperature smoothing and downward hysteresis to eliminate fan pulsing.
+- **Smart Temperature Curves (Independent or Synced)**: Separate, independent curve controllers for CPU (`CpuTemp`, AMD Ryzen 5 5600H) and GPU (`GpuTemp`, NVIDIA GeForce GTX 1650). GPU fan stays whisper-quiet during CPU-heavy compilation tasks, and CPU fan stays calm during GPU-only gaming. An optional sync toggle is provided for users who prefer unified curve scaling.
 - **Hardware Telemetry**: Real-time CPU and GPU temperatures alongside live fan tachometers (RPM).
 - **Overheat Guard Watchdog**: Automatic 100% fan speed engagement if temperatures exceed user-configured thresholds (e.g. 88°C).
 - **System Tray Integration**: Minimize to tray, dynamic stat tooltips, right-click quick preset switcher, and single-instance mutex.
@@ -69,9 +69,10 @@ FanCtl follows a decoupled, 4-tier architecture:
 | **CUSTOM** | Direct manual control via individual CPU / GPU sliders or quick chips (30%, 50%, 75%, 100%). |
 
 ### Keyboard & UI Controls
-- **Link Fans**: Synchronizes CPU and GPU sliders so adjusting one moves both.
+- **Link Fans**: Synchronizes manual CPU and GPU sliders so adjusting one moves both.
 - **CoolBoost**: Toggles EC register `0x10` (`0x01` On / `0x00` Off).
-- **Curves Panel (`📈 Curves`)**: Edit or switch between Silent, Balanced, and Gaming curve profiles.
+- **Curves Panel (`📈 Curves`)**: Toggle between `[💻 CPU Fan Curve]` and `[🎮 GPU Fan Curve]` tabs with live target speed previews (e.g. `52°C ➔ 38%`), independent profile presets (Silent, Balanced, Gaming), and an optional `Sync CPU & GPU Curves` checkbox.
+- **Sensors Panel (`🌡 Sensors`)**: Collapsible hardware drawer displaying live readings for all sensors detected by NVML, LibreHardwareMonitor, and ACPI.
 - **Settings Panel (`⚙`)**: Toggle auto-start, start minimized, close to tray, and overheat threshold.
 
 ---

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows.Media;
 using System.Windows.Threading;
 using FanCtl.Hardware;
 using FanCtl.Services;
@@ -9,8 +10,26 @@ namespace FanCtl;
 
 public class FanViewModel : INotifyPropertyChanged
 {
+    private static readonly SolidColorBrush ActiveTabBg = new(Color.FromRgb(32, 42, 56));
+    private static readonly SolidColorBrush InactiveTabBg = new(Color.FromRgb(24, 26, 32));
+    private static readonly SolidColorBrush ActiveTabBorder = new(Color.FromRgb(0, 229, 255));
+    private static readonly SolidColorBrush InactiveTabBorder = new(Color.FromRgb(45, 48, 57));
+    private static readonly SolidColorBrush ActiveTabText = new(Color.FromRgb(0, 229, 255));
+    private static readonly SolidColorBrush InactiveTabText = new(Color.FromRgb(144, 164, 174));
+
+    static FanViewModel()
+    {
+        ActiveTabBg.Freeze();
+        InactiveTabBg.Freeze();
+        ActiveTabBorder.Freeze();
+        InactiveTabBorder.Freeze();
+        ActiveTabText.Freeze();
+        InactiveTabText.Freeze();
+    }
+
     private readonly DispatcherTimer _pollTimer;
-    private readonly FanCurveController _curveController = new();
+    private readonly FanCurveController _cpuCurveController = new();
+    private readonly FanCurveController _gpuCurveController = new();
     private readonly AppSettings _settings;
 
     private double _cpuTemp = 45;
@@ -27,7 +46,13 @@ public class FanViewModel : INotifyPropertyChanged
     private bool _turboActive;
 
     private string _activeMode = "Auto"; // Auto, Silent, Balanced, Turbo, Curve, Custom
-    private string _activeCurvePreset = "Balanced";
+    private bool _syncFanCurves;
+    private string _cpuCurvePreset = "Balanced";
+    private string _gpuCurvePreset = "Balanced";
+    private int _selectedCurveTab = 0; // 0 = CPU, 1 = GPU
+    private int _cpuCurveTargetSpeed = 50;
+    private int _gpuCurveTargetSpeed = 50;
+
     private bool _overheatProtection = true;
     private int _overheatThreshold = 88;
     private bool _isOverheating;
@@ -49,7 +74,10 @@ public class FanViewModel : INotifyPropertyChanged
     private bool _cpuDragging;
     private bool _gpuDragging;
 
-    public ObservableCollection<CurvePoint> CurvePoints { get; } = new();
+    public ObservableCollection<CurvePoint> CpuCurvePoints { get; } = new();
+    public ObservableCollection<CurvePoint> GpuCurvePoints { get; } = new();
+    public ObservableCollection<CurvePoint> ActiveCurvePoints => SelectedCurveTab == 0 ? CpuCurvePoints : GpuCurvePoints;
+
     public ObservableCollection<SensorItem> AllSensors { get; } = new();
 
     public event Action<string>? TooltipUpdateRequested;
@@ -66,12 +94,15 @@ public class FanViewModel : INotifyPropertyChanged
         _startMinimized = _settings.StartMinimized;
         _closeToTray = _settings.CloseToTray;
         _activeMode = _settings.ActivePreset;
-        _activeCurvePreset = _settings.ActiveCurvePreset;
+        _syncFanCurves = _settings.SyncFanCurves;
+        _cpuCurvePreset = _settings.CpuCurvePreset ?? "Balanced";
+        _gpuCurvePreset = _settings.GpuCurvePreset ?? "Balanced";
         _cpuFanSpeed = _settings.CpuManualSpeed;
         _gpuFanSpeed = _settings.GpuManualSpeed;
 
-        foreach (var p in _settings.CustomCurvePoints)
-            CurvePoints.Add(new CurvePoint(p.Temperature, p.FanSpeed));
+        // Initialize curves from presets or custom points
+        LoadCpuCurvePreset(_cpuCurvePreset);
+        LoadGpuCurvePreset(_gpuCurvePreset);
 
         // 2. Initialize hardware
         FanHardwareManager.Instance.Initialize();
@@ -261,21 +292,133 @@ public class FanViewModel : INotifyPropertyChanged
         }
     }
 
-    public string ActiveCurvePreset
+    public bool SyncFanCurves
     {
-        get => _activeCurvePreset;
+        get => _syncFanCurves;
         set
         {
-            if (_activeCurvePreset != value)
+            if (_syncFanCurves != value)
             {
-                _activeCurvePreset = value;
+                _syncFanCurves = value;
                 OnPropertyChanged();
-                LoadCurvePreset(value);
-                _settings.ActiveCurvePreset = value;
+                _settings.SyncFanCurves = value;
                 ConfigManager.Save(_settings);
+
+                if (value)
+                {
+                    GpuCurvePreset = CpuCurvePreset;
+                    LoadGpuCurvePreset(GpuCurvePreset);
+                }
+                if (ActiveMode == "Curve")
+                    EvaluateCurveMode();
             }
         }
     }
+
+    public string CpuCurvePreset
+    {
+        get => _cpuCurvePreset;
+        set
+        {
+            if (_cpuCurvePreset != value)
+            {
+                _cpuCurvePreset = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(CurrentCurvePreset));
+                LoadCpuCurvePreset(value);
+                _settings.CpuCurvePreset = value;
+                ConfigManager.Save(_settings);
+
+                if (SyncFanCurves && _gpuCurvePreset != value)
+                {
+                    _gpuCurvePreset = value;
+                    OnPropertyChanged(nameof(GpuCurvePreset));
+                    LoadGpuCurvePreset(value);
+                    _settings.GpuCurvePreset = value;
+                    ConfigManager.Save(_settings);
+                }
+
+                if (ActiveMode == "Curve") EvaluateCurveMode();
+            }
+        }
+    }
+
+    public string GpuCurvePreset
+    {
+        get => _gpuCurvePreset;
+        set
+        {
+            if (_gpuCurvePreset != value)
+            {
+                _gpuCurvePreset = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(CurrentCurvePreset));
+                LoadGpuCurvePreset(value);
+                _settings.GpuCurvePreset = value;
+                ConfigManager.Save(_settings);
+
+                if (SyncFanCurves && _cpuCurvePreset != value)
+                {
+                    _cpuCurvePreset = value;
+                    OnPropertyChanged(nameof(CpuCurvePreset));
+                    LoadCpuCurvePreset(value);
+                    _settings.CpuCurvePreset = value;
+                    ConfigManager.Save(_settings);
+                }
+
+                if (ActiveMode == "Curve") EvaluateCurveMode();
+            }
+        }
+    }
+
+    public string ActiveCurvePreset
+    {
+        get => CurrentCurvePreset;
+        set => SetCurvePreset(value);
+    }
+
+    public int SelectedCurveTab
+    {
+        get => _selectedCurveTab;
+        set
+        {
+            if (_selectedCurveTab != value)
+            {
+                _selectedCurveTab = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsCpuCurveTabSelected));
+                OnPropertyChanged(nameof(IsGpuCurveTabSelected));
+                OnPropertyChanged(nameof(ActiveCurvePoints));
+                OnPropertyChanged(nameof(CurrentCurveTabTitle));
+                OnPropertyChanged(nameof(CurrentCurvePreset));
+                OnPropertyChanged(nameof(CurrentCurveLiveText));
+                OnPropertyChanged(nameof(CpuTabBackground));
+                OnPropertyChanged(nameof(CpuTabBorder));
+                OnPropertyChanged(nameof(CpuTabForeground));
+                OnPropertyChanged(nameof(GpuTabBackground));
+                OnPropertyChanged(nameof(GpuTabBorder));
+                OnPropertyChanged(nameof(GpuTabForeground));
+            }
+        }
+    }
+
+    public bool IsCpuCurveTabSelected => SelectedCurveTab == 0;
+    public bool IsGpuCurveTabSelected => SelectedCurveTab == 1;
+
+    public Brush CpuTabBackground => SelectedCurveTab == 0 ? ActiveTabBg : InactiveTabBg;
+    public Brush CpuTabBorder => SelectedCurveTab == 0 ? ActiveTabBorder : InactiveTabBorder;
+    public Brush CpuTabForeground => SelectedCurveTab == 0 ? ActiveTabText : InactiveTabText;
+
+    public Brush GpuTabBackground => SelectedCurveTab == 1 ? ActiveTabBg : InactiveTabBg;
+    public Brush GpuTabBorder => SelectedCurveTab == 1 ? ActiveTabBorder : InactiveTabBorder;
+    public Brush GpuTabForeground => SelectedCurveTab == 1 ? ActiveTabText : InactiveTabText;
+
+    public string CurrentCurvePreset => SelectedCurveTab == 0 ? CpuCurvePreset : GpuCurvePreset;
+    public string CurrentCurveTabTitle => SelectedCurveTab == 0 ? "CPU Fan Curve (Ryzen 5 5600H)" : "GPU Fan Curve (GTX 1650)";
+
+    public string CpuCurveLiveText => $"{CpuTempText} ➔ {_cpuCurveTargetSpeed}%";
+    public string GpuCurveLiveText => $"{GpuTempText} ➔ {_gpuCurveTargetSpeed}%";
+    public string CurrentCurveLiveText => SelectedCurveTab == 0 ? CpuCurveLiveText : GpuCurveLiveText;
 
     public bool OverheatProtection
     {
@@ -575,35 +718,92 @@ public class FanViewModel : INotifyPropertyChanged
         else if (ActiveMode != "Curve" && ActiveMode != "Turbo") ActiveMode = "Custom";
     }
 
-    private void LoadCurvePreset(string presetName)
+    public void SetCurvePreset(string preset)
+    {
+        if (SelectedCurveTab == 0)
+        {
+            CpuCurvePreset = preset;
+        }
+        else
+        {
+            GpuCurvePreset = preset;
+        }
+    }
+
+    private void LoadCpuCurvePreset(string presetName)
     {
         IList<CurvePoint> source = presetName switch
         {
             "Silent" => FanCurveController.SilentCurve,
             "Balanced" => FanCurveController.BalancedCurve,
             "Gaming" => FanCurveController.GamingCurve,
-            _ => _settings.CustomCurvePoints
+            _ => _settings.CustomCpuCurvePoints.Count > 0 ? _settings.CustomCpuCurvePoints : FanCurveController.BalancedCurve
         };
 
-        CurvePoints.Clear();
+        CpuCurvePoints.Clear();
         foreach (var p in source)
-            CurvePoints.Add(new CurvePoint(p.Temperature, p.FanSpeed));
+            CpuCurvePoints.Add(new CurvePoint(p.Temperature, p.FanSpeed));
 
-        if (ActiveMode == "Curve")
-            EvaluateCurveMode();
+        OnPropertyChanged(nameof(ActiveCurvePoints));
+    }
+
+    private void LoadGpuCurvePreset(string presetName)
+    {
+        IList<CurvePoint> source = presetName switch
+        {
+            "Silent" => FanCurveController.SilentCurve,
+            "Balanced" => FanCurveController.BalancedCurve,
+            "Gaming" => FanCurveController.GamingCurve,
+            _ => _settings.CustomGpuCurvePoints.Count > 0 ? _settings.CustomGpuCurvePoints : FanCurveController.BalancedCurve
+        };
+
+        GpuCurvePoints.Clear();
+        foreach (var p in source)
+            GpuCurvePoints.Add(new CurvePoint(p.Temperature, p.FanSpeed));
+
+        OnPropertyChanged(nameof(ActiveCurvePoints));
     }
 
     private void EvaluateCurveMode()
     {
-        var targetSpeed = _curveController.EvaluateSpeed(PeakTemp, CurvePoints);
-        _cpuFanSpeed = targetSpeed;
-        _gpuFanSpeed = targetSpeed;
-        OnPropertyChanged(nameof(CpuFanSpeed));
-        OnPropertyChanged(nameof(GpuFanSpeed));
+        if (SyncFanCurves || LinkFans)
+        {
+            var targetSpeed = _cpuCurveController.EvaluateSpeed(PeakTemp, CpuCurvePoints);
+            _cpuCurveTargetSpeed = targetSpeed;
+            _gpuCurveTargetSpeed = targetSpeed;
 
-        FanHardwareManager.Instance.SetCpuFan(false, targetSpeed);
-        FanHardwareManager.Instance.SetGpuFan(false, targetSpeed);
-        StatusText = $"Curve Active: {targetSpeed}% (Peak {PeakTemp:F1}°C)";
+            _cpuFanSpeed = targetSpeed;
+            _gpuFanSpeed = targetSpeed;
+            OnPropertyChanged(nameof(CpuFanSpeed));
+            OnPropertyChanged(nameof(GpuFanSpeed));
+            OnPropertyChanged(nameof(CpuCurveLiveText));
+            OnPropertyChanged(nameof(GpuCurveLiveText));
+            OnPropertyChanged(nameof(CurrentCurveLiveText));
+
+            FanHardwareManager.Instance.SetCpuFan(false, targetSpeed);
+            FanHardwareManager.Instance.SetGpuFan(false, targetSpeed);
+            StatusText = $"Curve Synced: {targetSpeed}% (Peak {PeakTemp:F1}°C)";
+        }
+        else
+        {
+            var cpuTarget = _cpuCurveController.EvaluateSpeed(CpuTemp, CpuCurvePoints);
+            var gpuTarget = _gpuCurveController.EvaluateSpeed(GpuTemp, GpuCurvePoints);
+
+            _cpuCurveTargetSpeed = cpuTarget;
+            _gpuCurveTargetSpeed = gpuTarget;
+
+            _cpuFanSpeed = cpuTarget;
+            _gpuFanSpeed = gpuTarget;
+            OnPropertyChanged(nameof(CpuFanSpeed));
+            OnPropertyChanged(nameof(GpuFanSpeed));
+            OnPropertyChanged(nameof(CpuCurveLiveText));
+            OnPropertyChanged(nameof(GpuCurveLiveText));
+            OnPropertyChanged(nameof(CurrentCurveLiveText));
+
+            FanHardwareManager.Instance.SetCpuFan(false, cpuTarget);
+            FanHardwareManager.Instance.SetGpuFan(false, gpuTarget);
+            StatusText = $"Curves: CPU {cpuTarget}% ({CpuTempText}) | GPU {gpuTarget}% ({GpuTempText})";
+        }
     }
 
     private void OnPollTick(object? sender, EventArgs e)
@@ -649,6 +849,15 @@ public class FanViewModel : INotifyPropertyChanged
         else if (ActiveMode == "Curve" && !_cpuDragging && !_gpuDragging)
         {
             EvaluateCurveMode();
+        }
+        else
+        {
+            // Keep live curve previews calculated for curve tabs
+            _cpuCurveTargetSpeed = _cpuCurveController.EvaluateSpeed(CpuTemp, CpuCurvePoints);
+            _gpuCurveTargetSpeed = _gpuCurveController.EvaluateSpeed(GpuTemp, GpuCurvePoints);
+            OnPropertyChanged(nameof(CpuCurveLiveText));
+            OnPropertyChanged(nameof(GpuCurveLiveText));
+            OnPropertyChanged(nameof(CurrentCurveLiveText));
         }
 
         // Update Tray Tooltip

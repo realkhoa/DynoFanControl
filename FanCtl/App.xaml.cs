@@ -60,7 +60,14 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         OnEmergencyExit();
-        _mutex?.ReleaseMutex();
+        try
+        {
+            _mutex?.ReleaseMutex();
+        }
+        catch
+        {
+            // Suppress error if calling thread does not own mutex
+        }
         _mutex?.Dispose();
         base.OnExit(e);
     }

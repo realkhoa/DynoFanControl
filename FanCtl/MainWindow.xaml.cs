@@ -138,6 +138,14 @@ public partial class MainWindow : Window
         _vm.IsCurveEditorOpen = !_vm.IsCurveEditorOpen;
     }
 
+    private void CurveTab_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button b && b.Tag is string s && int.TryParse(s, out var tabIndex))
+        {
+            _vm.SelectedCurveTab = tabIndex;
+        }
+    }
+
     private void SensorsToggle_Click(object sender, RoutedEventArgs e)
     {
         _vm.IsSensorsDrawerOpen = !_vm.IsSensorsDrawerOpen;
@@ -146,7 +154,7 @@ public partial class MainWindow : Window
     private void CurveProfile_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button b && b.Tag is string profile)
-            _vm.ActiveCurvePreset = profile;
+            _vm.SetCurvePreset(profile);
     }
 
     private void SettingsToggle_Click(object sender, RoutedEventArgs e)

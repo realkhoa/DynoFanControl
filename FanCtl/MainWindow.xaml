@@ -356,18 +356,61 @@
                     BorderBrush="#303440" BorderThickness="1"
                     Visibility="{Binding IsCurveEditorOpen, Converter={StaticResource BoolToVis}}">
                 <StackPanel>
-                    <Grid Margin="0,0,0,8">
-                        <TextBlock Text="SMART FAN CURVE CONFIGURATION" FontSize="11" FontWeight="Bold" Foreground="#90A4AE"/>
+                    <!-- Header with Title and Sync Checkbox -->
+                    <Grid Margin="0,0,0,10">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="SMART FAN CURVES" FontSize="11" FontWeight="Bold" Foreground="#90A4AE" VerticalAlignment="Center"/>
+                            <CheckBox Content="Sync CPU &amp; GPU Curves" IsChecked="{Binding SyncFanCurves, Mode=TwoWay}"
+                                      Foreground="#78909C" FontSize="10" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                        </StackPanel>
                         <Button Content="✕" HorizontalAlignment="Right" Style="{StaticResource BaseBtn}"
                                 Width="22" Height="22" Padding="0" Click="CurveToggle_Click"/>
                     </Grid>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                        <TextBlock Text="Curve Profile:" FontSize="11" Foreground="#B0BEC5" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <Button Style="{StaticResource ChipBtn}" Content="Silent" Click="CurveProfile_Click" Tag="Silent"/>
-                        <Button Style="{StaticResource ChipBtn}" Content="Balanced" Click="CurveProfile_Click" Tag="Balanced"/>
-                        <Button Style="{StaticResource ChipBtn}" Content="Gaming" Click="CurveProfile_Click" Tag="Gaming"/>
-                    </StackPanel>
-                    <ItemsControl ItemsSource="{Binding CurvePoints}">
+
+                    <!-- Curve Tabs: CPU Curve vs GPU Curve -->
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- CPU Curve Tab Button -->
+                        <Button Grid.Column="0" Margin="0,0,4,0" Height="32" Click="CurveTab_Click" Tag="0"
+                                Background="{Binding CpuTabBackground}" BorderBrush="{Binding CpuTabBorder}" BorderThickness="1"
+                                Style="{StaticResource BaseBtn}">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <TextBlock Text="💻 CPU Fan Curve" FontSize="11" FontWeight="Bold" Foreground="{Binding CpuTabForeground}"/>
+                                <TextBlock Text="{Binding CpuCurveLiveText, StringFormat=' ({0})'}" FontSize="10" Foreground="#78909C" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- GPU Curve Tab Button -->
+                        <Button Grid.Column="1" Margin="4,0,0,0" Height="32" Click="CurveTab_Click" Tag="1"
+                                Background="{Binding GpuTabBackground}" BorderBrush="{Binding GpuTabBorder}" BorderThickness="1"
+                                Style="{StaticResource BaseBtn}">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <TextBlock Text="🎮 GPU Fan Curve" FontSize="11" FontWeight="Bold" Foreground="{Binding GpuTabForeground}"/>
+                                <TextBlock Text="{Binding GpuCurveLiveText, StringFormat=' ({0})'}" FontSize="10" Foreground="#78909C" Margin="4,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <!-- Profile Presets & Active Profile Badge -->
+                    <Grid Margin="0,0,0,8">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Curve Profile:" FontSize="11" Foreground="#B0BEC5" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <Button Style="{StaticResource ChipBtn}" Content="Silent" Click="CurveProfile_Click" Tag="Silent"/>
+                            <Button Style="{StaticResource ChipBtn}" Content="Balanced" Click="CurveProfile_Click" Tag="Balanced"/>
+                            <Button Style="{StaticResource ChipBtn}" Content="Gaming" Click="CurveProfile_Click" Tag="Gaming"/>
+                            <TextBlock Text="{Binding CurrentCurvePreset, StringFormat='Active: {0}'}" FontSize="11" FontWeight="Bold" Foreground="#00E5FF" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        </StackPanel>
+
+                        <TextBlock HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="10" Foreground="#78909C"
+                                   Text="{Binding CurrentCurveTabTitle}"/>
+                    </Grid>
+
+                    <!-- Active Curve Points Grid -->
+                    <ItemsControl ItemsSource="{Binding ActiveCurvePoints}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <UniformGrid Columns="6"/>

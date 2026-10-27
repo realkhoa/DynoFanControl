@@ -31,7 +31,11 @@ public class AppSettings
     public int CpuManualSpeed { get; set; } = 50;
     public int GpuManualSpeed { get; set; } = 50;
 
-    public string ActiveCurvePreset { get; set; } = "Balanced"; // Silent, Balanced, Gaming, Custom
+    public bool SyncFanCurves { get; set; } = false; // False = Separate independent curves for CPU & GPU
+    public string ActiveCurvePreset { get; set; } = "Balanced"; // Legacy fallback
+    public string CpuCurvePreset { get; set; } = "Balanced"; // Silent, Balanced, Gaming, Custom
+    public string GpuCurvePreset { get; set; } = "Balanced"; // Silent, Balanced, Gaming, Custom
+
     public List<CurvePoint> CustomCurvePoints { get; set; } = new()
     {
         new(40, 20),
@@ -40,6 +44,26 @@ public class AppSettings
         new(72, 70),
         new(82, 90),
         new(88, 100)
+    };
+
+    public List<CurvePoint> CustomCpuCurvePoints { get; set; } = new()
+    {
+        new(40, 20),
+        new(50, 35),
+        new(60, 50),
+        new(72, 70),
+        new(82, 90),
+        new(88, 100)
+    };
+
+    public List<CurvePoint> CustomGpuCurvePoints { get; set; } = new()
+    {
+        new(40, 20),
+        new(50, 35),
+        new(60, 50),
+        new(70, 75),
+        new(78, 90),
+        new(85, 100)
     };
 }
 
