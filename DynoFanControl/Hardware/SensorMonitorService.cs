@@ -1,15 +1,16 @@
 using System.Management;
+using DynoFanControl.Hardware.Gpu;
 using LibreHardwareMonitor.Hardware;
 
 namespace DynoFanControl.Hardware;
 
 public class SensorItem
 {
-    public string Category { get; set; } = ""; // "CPU", "GPU", "Thermal Zone", "Storage", "Battery"
+    public string Category { get; set; } = ""; // "CPU", "Discrete GPU", "Integrated GPU", "Motherboard", "Fan Tachometer", "Storage", "Battery"
     public string Name { get; set; } = "";
     public double Value { get; set; }
     public string Unit { get; set; } = "°C";
-    public string FormattedValue => $"{Value:F1}{Unit}";
+    public string FormattedValue => Unit == " RPM" ? $"{Value:N0} RPM" : $"{Value:F1}{Unit}";
     public string Subtext { get; set; } = "";
 }
 
@@ -17,10 +18,11 @@ public class MultiSensorSnapshot
 {
     public double CpuTemp { get; set; }
     public double GpuTemp { get; set; }
-    public string GpuName { get; set; } = "NVIDIA GeForce GTX 1650";
+    public string GpuName { get; set; } = "Graphics Processor";
     public uint GpuUtilization { get; set; }
     public double GpuPowerWatts { get; set; }
     public bool GpuIsSleeping { get; set; }
+    public List<GpuDeviceInfo> DetectedGpus { get; set; } = new();
     public List<SensorItem> AllSensors { get; } = new();
 }
 
@@ -32,16 +34,22 @@ public sealed class SensorMonitorService : IDisposable
 
     public static SensorMonitorService Instance { get; } = new();
 
+    public Computer? ComputerInstance => _computer;
+
     public void Initialize()
     {
         lock (_lock)
         {
             if (_computerInitialized) return;
 
-            // 1. Initialize NVML for discrete GPU
-            NvmlDriver.Initialize();
+            // 1. Initialize Universal GPU Subsystem (NVIDIA NVML, AMD ADL, Intel)
+            try
+            {
+                GpuManager.Instance.Initialize();
+            }
+            catch { }
 
-            // 2. Initialize LibreHardwareMonitor for CPU & System
+            // 2. Initialize LibreHardwareMonitor for CPU, GPUs, Motherboard Super I/O, USB fan controllers
             try
             {
                 _computer = new Computer
@@ -50,7 +58,8 @@ public sealed class SensorMonitorService : IDisposable
                     IsGpuEnabled = true,
                     IsMotherboardEnabled = true,
                     IsStorageEnabled = true,
-                    IsBatteryEnabled = true
+                    IsBatteryEnabled = true,
+                    IsControllerEnabled = true // Corsair Commander, NZXT Kraken, AquaComputer
                 };
                 _computer.Open();
                 _computerInitialized = true;
@@ -67,45 +76,44 @@ public sealed class SensorMonitorService : IDisposable
     {
         var snapshot = new MultiSensorSnapshot();
 
-        // 1. Query NVIDIA GPU via NVML (Primary Discrete GPU Sensor)
+        // 1. Query Universal GPU Manager (NVIDIA NVML + AMD ADL + LHM Intel/AMD)
         try
         {
-            var nv = NvmlDriver.QueryGpu();
-            if (nv.IsAvailable)
-            {
-                snapshot.GpuName = nv.Name;
-                snapshot.GpuUtilization = nv.UtilizationGpu;
-                snapshot.GpuPowerWatts = nv.PowerWatts;
-                snapshot.GpuIsSleeping = nv.IsSleeping;
+            GpuManager.Instance.UpdateTelemetry(_computer);
+            var gpus = GpuManager.Instance.DetectedGpus;
+            snapshot.DetectedGpus = gpus.ToList();
 
-                if (!nv.IsSleeping && nv.Temperature > 0)
+            var activeGpu = GpuManager.Instance.ActiveGpu;
+            if (activeGpu != null)
+            {
+                snapshot.GpuName = activeGpu.Name;
+                snapshot.GpuUtilization = activeGpu.UtilizationGpu;
+                snapshot.GpuPowerWatts = activeGpu.PowerWatts;
+                snapshot.GpuIsSleeping = activeGpu.IsSleeping;
+                if (!activeGpu.IsSleeping && activeGpu.Temperature > 0)
                 {
-                    snapshot.GpuTemp = nv.Temperature;
-                    snapshot.AllSensors.Add(new SensorItem
-                    {
-                        Category = "Discrete GPU",
-                        Name = "GPU Core",
-                        Value = nv.Temperature,
-                        Unit = "°C",
-                        Subtext = $"{nv.Name} • {nv.UtilizationGpu}% Load • {nv.PowerWatts}W"
-                    });
+                    snapshot.GpuTemp = activeGpu.Temperature;
                 }
-                else if (nv.IsSleeping)
+            }
+
+            // Register all detected GPUs in the sensor list
+            foreach (var gpu in gpus)
+            {
+                var cat = gpu.IsDiscrete ? "Discrete GPU" : "Integrated GPU";
+                var status = gpu.IsSleeping ? "Power Savings (Sleep)" : $"{gpu.UtilizationGpu}% Load • {gpu.PowerWatts:F1}W";
+                snapshot.AllSensors.Add(new SensorItem
                 {
-                    snapshot.AllSensors.Add(new SensorItem
-                    {
-                        Category = "Discrete GPU",
-                        Name = "GPU Core (Sleep Mode)",
-                        Value = 0,
-                        Unit = "°C",
-                        Subtext = $"{nv.Name} • Power Savings (0W)"
-                    });
-                }
+                    Category = cat,
+                    Name = $"{gpu.VendorBadge}: {gpu.Name}",
+                    Value = gpu.IsSleeping ? 0 : gpu.Temperature,
+                    Unit = "°C",
+                    Subtext = $"{gpu.TypeBadge} • {status} {(!string.IsNullOrEmpty(gpu.VramTotalText) ? "• " + gpu.VramTotalText : "")}"
+                });
             }
         }
         catch { }
 
-        // 2. Query LibreHardwareMonitor (CPU, APU, NVMe Storage, Motherboard)
+        // 2. Query LibreHardwareMonitor (CPU, Motherboard Super I/O, Storage, Fans)
         lock (_lock)
         {
             if (_computer != null)
@@ -116,14 +124,14 @@ public sealed class SensorMonitorService : IDisposable
                     {
                         hw.Update();
 
-                        // Process sub-hardware (e.g. CPU cores)
+                        // Process sub-hardware (e.g. CPU cores, Motherboard Super I/O)
                         foreach (var sub in hw.SubHardware)
                         {
                             sub.Update();
-                            ExtractTemperatures(sub, snapshot);
+                            ExtractHardwareSensors(sub, snapshot);
                         }
 
-                        ExtractTemperatures(hw, snapshot);
+                        ExtractHardwareSensors(hw, snapshot);
                     }
                 }
                 catch { }
@@ -181,34 +189,40 @@ public sealed class SensorMonitorService : IDisposable
 
         if (snapshot.GpuTemp == 0)
         {
-            var gpuSensor = snapshot.AllSensors.FirstOrDefault(s => (s.Category == "Discrete GPU" || s.Name.Contains("GPU")) && s.Value > 0);
+            var gpuSensor = snapshot.AllSensors.FirstOrDefault(s => (s.Category.Contains("GPU") || s.Name.Contains("GPU")) && s.Value > 0);
             if (gpuSensor != null) snapshot.GpuTemp = gpuSensor.Value;
         }
 
         return snapshot;
     }
 
-    private void ExtractTemperatures(IHardware hw, MultiSensorSnapshot snapshot)
+    private void ExtractHardwareSensors(IHardware hw, MultiSensorSnapshot snapshot)
     {
         var category = hw.HardwareType switch
         {
             HardwareType.Cpu => "CPU",
             HardwareType.GpuNvidia => "Discrete GPU",
-            HardwareType.GpuAmd => "Integrated GPU",
+            HardwareType.GpuAmd => "AMD Radeon GPU",
+            HardwareType.GpuIntel => "Intel GPU",
             HardwareType.Storage => "Storage",
             HardwareType.Motherboard => "Motherboard",
+            HardwareType.SuperIO => "Super I/O",
+            HardwareType.Cooler => "Liquid Cooler/Hub",
             HardwareType.Battery => "Battery",
             _ => hw.HardwareType.ToString()
         };
 
         foreach (var sensor in hw.Sensors)
         {
-            if (sensor.SensorType == SensorType.Temperature && sensor.Value.HasValue)
+            if (!sensor.Value.HasValue) continue;
+            var val = Math.Round((double)sensor.Value.Value, 1);
+
+            // Temperatures
+            if (sensor.SensorType == SensorType.Temperature)
             {
-                var val = Math.Round((double)sensor.Value.Value, 1);
                 if (val is > 0 and < 130)
                 {
-                    // Update primary CPU Temp
+                    // Primary CPU Temperature update
                     if (hw.HardwareType == HardwareType.Cpu)
                     {
                         if (sensor.Name.Contains("Package", StringComparison.OrdinalIgnoreCase) ||
@@ -223,8 +237,8 @@ public sealed class SensorMonitorService : IDisposable
                         }
                     }
 
-                    // Update primary GPU Temp if not already set by NVML
-                    if (hw.HardwareType == HardwareType.GpuNvidia && snapshot.GpuTemp == 0)
+                    // Primary GPU Temp update if not set
+                    if ((hw.HardwareType is HardwareType.GpuNvidia or HardwareType.GpuAmd or HardwareType.GpuIntel) && snapshot.GpuTemp == 0)
                     {
                         snapshot.GpuTemp = val;
                     }
@@ -239,6 +253,30 @@ public sealed class SensorMonitorService : IDisposable
                     });
                 }
             }
+            // Fan Tachometers
+            else if (sensor.SensorType == SensorType.Fan && val > 0)
+            {
+                snapshot.AllSensors.Add(new SensorItem
+                {
+                    Category = "Fan Tachometer",
+                    Name = sensor.Name,
+                    Value = val,
+                    Unit = " RPM",
+                    Subtext = hw.Name
+                });
+            }
+            // Fan Controls
+            else if (sensor.SensorType == SensorType.Control)
+            {
+                snapshot.AllSensors.Add(new SensorItem
+                {
+                    Category = "Fan Control",
+                    Name = sensor.Name,
+                    Value = val,
+                    Unit = "%",
+                    Subtext = hw.Name
+                });
+            }
         }
     }
 
@@ -252,6 +290,7 @@ public sealed class SensorMonitorService : IDisposable
                 _computer = null;
                 _computerInitialized = false;
             }
+            GpuManager.Instance.Dispose();
             NvmlDriver.Shutdown();
         }
     }

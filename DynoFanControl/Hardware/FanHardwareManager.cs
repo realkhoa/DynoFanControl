@@ -1,4 +1,6 @@
 using System.Management;
+using DynoFanControl.Hardware.Drivers;
+using DynoFanControl.Hardware.Gpu;
 
 namespace DynoFanControl.Hardware;
 
@@ -9,159 +11,72 @@ public class HardwareReading
     public double PeakTemp => Math.Max(CpuTemp, GpuTemp);
     public uint CpuRpm { get; set; }
     public uint GpuRpm { get; set; }
-    public bool CpuIsAuto { get; set; }
-    public bool GpuIsAuto { get; set; }
-    public string GpuName { get; set; } = "NVIDIA GeForce GTX 1650";
+    public bool CpuIsAuto { get; set; } = true;
+    public bool GpuIsAuto { get; set; } = true;
+    public string GpuName { get; set; } = "Graphics Processor";
     public uint GpuUtilization { get; set; }
     public double GpuPowerWatts { get; set; }
     public bool GpuIsSleeping { get; set; }
+    public List<GpuDeviceInfo> DetectedGpus { get; set; } = new();
     public List<SensorItem> AllSensors { get; set; } = new();
 }
 
 public sealed class FanHardwareManager : IDisposable
 {
-    // Acer Nitro 5 (AN515-45) EC Register Map
-    public const byte REG_GPU_MANUAL    = 0x21; // GPU manual mode control
-    public const byte REG_CPU_MANUAL    = 0x22; // CPU manual mode control
-    public const byte REG_CPU_SPEED_RD  = 0x13; // CPU fan speed read
-    public const byte REG_GPU_SPEED_RD  = 0x15; // GPU fan speed read
-    public const byte REG_CPU_SPEED_WR  = 0x37; // CPU fan speed write (0-100%)
-    public const byte REG_GPU_SPEED_WR  = 0x3A; // GPU fan speed write (0-100%)
-    public const byte REG_COOLBOOST     = 0x10; // CoolBoost on/off
-
-    // Register Values
-    public const byte CPU_MANUAL_ON     = 0x0C; // Enable CPU manual control
-    public const byte CPU_MANUAL_OFF    = 0x04; // Disable CPU manual control (BIOS Auto)
-    public const byte GPU_MANUAL_ON     = 0x30; // Enable GPU manual control
-    public const byte GPU_MANUAL_OFF    = 0x10; // Disable GPU manual control (BIOS Auto)
-    public const byte COOLBOOST_OFF     = 0x00;
-    public const byte COOLBOOST_ON      = 0x01;
-
-    private readonly DirectEcDriver _directEc = new();
-    private bool _directEcReady;
     private bool _disposed;
 
     public static FanHardwareManager Instance { get; } = new();
 
-    public string BackendStatus
-    {
-        get
-        {
-            if (_directEcReady) return "Direct Kernel Driver (WinRing0)";
-            if (EcProbeFallback.IsAvailable) return "ec-probe.exe Fallback";
-            return "WMI Telemetry Only";
-        }
-    }
-
-    public bool IsControlAvailable => _directEcReady || EcProbeFallback.IsAvailable;
+    public string BackendStatus => UniversalDriverCoordinator.Instance.ActiveDriverName;
+    public string PlatformSummary => UniversalDriverCoordinator.Instance.PlatformSummary;
+    public bool IsControlAvailable => UniversalDriverCoordinator.Instance.IsControlAvailable;
 
     public void Initialize()
     {
-        // 1. Try starting kernel driver service if needed
-        EcProbeFallback.EnsureDriverService();
-
-        // 2. Attempt direct EC driver initialization
-        _directEcReady = _directEc.Initialize();
-
-        // 3. Initialize Sensor Monitor (NVML + LibreHardwareMonitor)
+        // 1. Initialize Sensor Monitor (Universal GPU: NVML + AMD ADL + LHM Intel/AMD/NVIDIA + ACPI)
         try
         {
             SensorMonitorService.Instance.Initialize();
         }
         catch { }
-    }
 
-    public bool WriteRegister(byte reg, byte val)
-    {
-        if (_directEcReady)
+        // 2. Initialize Universal Driver Coordinator (Acer, ASUS, Lenovo, MSI, Dell, Desktop Super I/O)
+        try
         {
-            try
-            {
-                _directEc.WriteRegister(reg, val);
-                return true;
-            }
-            catch
-            {
-                // Fallback to ec-probe on direct error
-            }
+            UniversalDriverCoordinator.Instance.Initialize(SensorMonitorService.Instance.ComputerInstance);
         }
-
-        return EcProbeFallback.TryWriteRegister(reg, val);
-    }
-
-    public byte? ReadRegister(byte reg)
-    {
-        if (_directEcReady)
-        {
-            try
-            {
-                return _directEc.ReadRegister(reg);
-            }
-            catch
-            {
-                // Fallback
-            }
-        }
-
-        return EcProbeFallback.TryReadRegister(reg);
+        catch { }
     }
 
     public bool SetCpuFan(bool isAuto, int speedPercent)
     {
-        if (isAuto || speedPercent <= 0)
-        {
-            WriteRegister(REG_CPU_SPEED_WR, 0);
-            return WriteRegister(REG_CPU_MANUAL, CPU_MANUAL_OFF);
-        }
-        else
-        {
-            var clamped = Math.Clamp(speedPercent, 1, 100);
-            var okManual = WriteRegister(REG_CPU_MANUAL, CPU_MANUAL_ON);
-            var okSpeed = WriteRegister(REG_CPU_SPEED_WR, (byte)clamped);
-            return okManual && okSpeed;
-        }
+        return UniversalDriverCoordinator.Instance.SetCpuFan(isAuto, speedPercent);
     }
 
     public bool SetGpuFan(bool isAuto, int speedPercent)
     {
-        if (isAuto || speedPercent <= 0)
-        {
-            WriteRegister(REG_GPU_SPEED_WR, 0);
-            return WriteRegister(REG_GPU_MANUAL, GPU_MANUAL_OFF);
-        }
-        else
-        {
-            var clamped = Math.Clamp(speedPercent, 1, 100);
-            var okManual = WriteRegister(REG_GPU_MANUAL, GPU_MANUAL_ON);
-            var okSpeed = WriteRegister(REG_GPU_SPEED_WR, (byte)clamped);
-            return okManual && okSpeed;
-        }
+        return UniversalDriverCoordinator.Instance.SetGpuFan(isAuto, speedPercent);
     }
 
     public bool SetCoolBoost(bool enabled)
     {
-        return WriteRegister(REG_COOLBOOST, enabled ? COOLBOOST_ON : COOLBOOST_OFF);
+        return UniversalDriverCoordinator.Instance.SetCoolBoost(enabled);
     }
 
     public void EmergencyResetToAuto()
     {
         try
         {
-            SetCpuFan(true, 0);
-            SetGpuFan(true, 0);
-            SetCoolBoost(false);
+            UniversalDriverCoordinator.Instance.EmergencyReset();
         }
-        catch
-        {
-            // Suppress errors during emergency teardown
-        }
+        catch { }
     }
 
     public HardwareReading PollHardware()
     {
         var reading = new HardwareReading();
 
-        // 1. Read All Sensors via SensorMonitorService (NVML + LibreHardwareMonitor + ACPI)
+        // 1. Read All Sensors via SensorMonitorService (Universal GPU + CPU + Super I/O + ACPI)
         try
         {
             var snapshot = SensorMonitorService.Instance.ReadAllSensors();
@@ -171,25 +86,40 @@ public sealed class FanHardwareManager : IDisposable
             reading.GpuUtilization = snapshot.GpuUtilization;
             reading.GpuPowerWatts = snapshot.GpuPowerWatts;
             reading.GpuIsSleeping = snapshot.GpuIsSleeping;
+            reading.DetectedGpus = snapshot.DetectedGpus;
             reading.AllSensors = snapshot.AllSensors;
         }
         catch { }
 
-        // 2. Poll Fan RPM via AcerGamingFunction WMI
+        // 2. Poll Fan Tachometers via Universal Driver Coordinator
+        try
+        {
+            var tach = UniversalDriverCoordinator.Instance.ReadTachometers();
+            reading.CpuRpm = tach.CpuFanRpm;
+            reading.GpuRpm = tach.GpuFanRpm;
+            reading.CpuIsAuto = tach.CpuIsAuto;
+            reading.GpuIsAuto = tach.GpuIsAuto;
+
+            // Acer WMI Fallback if on Acer and tachometer is 0
+            if (reading.CpuRpm == 0 && reading.GpuRpm == 0)
+            {
+                PollAcerWmiTachometers(reading);
+            }
+        }
+        catch { }
+
+        return reading;
+    }
+
+    private void PollAcerWmiTachometers(HardwareReading reading)
+    {
         try
         {
             var scope = new ManagementScope(@"\\.\root\wmi");
             scope.Connect();
 
             using var searcher = new ManagementObjectSearcher(scope, new ObjectQuery("SELECT * FROM AcerGamingFunction"));
-            ManagementObject? gamingInst = null;
-            foreach (var o in searcher.Get())
-            {
-                gamingInst = (ManagementObject)o;
-                break;
-            }
-
-            if (gamingInst != null)
+            foreach (ManagementObject gamingInst in searcher.Get())
             {
                 using (gamingInst)
                 {
@@ -209,28 +139,17 @@ public sealed class FanHardwareManager : IDisposable
                     reading.GpuRpm = (uint)(raw1 >> 32);
                     reading.GpuIsAuto = (raw1 & 1) == 1;
                 }
+                break;
             }
         }
-        catch
-        {
-            // Fallback: read raw EC speed registers
-            var cpuRaw = ReadRegister(REG_CPU_SPEED_RD);
-            if (cpuRaw.HasValue && cpuRaw.Value > 0)
-                reading.CpuRpm = (uint)cpuRaw.Value * 60;
-
-            var gpuRaw = ReadRegister(REG_GPU_SPEED_RD);
-            if (gpuRaw.HasValue && gpuRaw.Value > 0)
-                reading.GpuRpm = (uint)gpuRaw.Value * 60;
-        }
-
-        return reading;
+        catch { }
     }
 
     public void Dispose()
     {
         if (!_disposed)
         {
-            _directEc.Dispose();
+            UniversalDriverCoordinator.Instance.Dispose();
             SensorMonitorService.Instance.Dispose();
             _disposed = true;
         }

@@ -4,6 +4,8 @@ using System.Runtime.CompilerServices;
 using System.Windows.Media;
 using System.Windows.Threading;
 using DynoFanControl.Hardware;
+using DynoFanControl.Hardware.Drivers;
+using DynoFanControl.Hardware.Gpu;
 using DynoFanControl.Services;
 
 namespace DynoFanControl;
@@ -79,6 +81,38 @@ public class FanViewModel : INotifyPropertyChanged
     public ObservableCollection<CurvePoint> ActiveCurvePoints => SelectedCurveTab == 0 ? CpuCurvePoints : GpuCurvePoints;
 
     public ObservableCollection<SensorItem> AllSensors { get; } = new();
+    public ObservableCollection<GpuDeviceInfo> DetectedGpus { get; } = new();
+
+    private GpuDeviceInfo? _selectedGpu;
+    public GpuDeviceInfo? SelectedGpu
+    {
+        get => _selectedGpu;
+        set
+        {
+            if (_selectedGpu != value)
+            {
+                _selectedGpu = value;
+                OnPropertyChanged();
+                if (value != null)
+                {
+                    GpuManager.Instance.SetPreferredGpu(value.Id);
+                    GpuName = value.Name;
+                    _settings.PreferredGpuId = value.Id;
+                    ConfigManager.Save(_settings);
+                }
+            }
+        }
+    }
+
+    public string PlatformSummaryText => FanHardwareManager.Instance.PlatformSummary;
+    public string CpuModelName
+    {
+        get
+        {
+            var p = PlatformDetector.GetProfile();
+            return !string.IsNullOrEmpty(p.CpuName) ? p.CpuName : "AMD / Intel Processor";
+        }
+    }
 
     public event Action<string>? TooltipUpdateRequested;
 
@@ -99,6 +133,11 @@ public class FanViewModel : INotifyPropertyChanged
         _gpuCurvePreset = _settings.GpuCurvePreset ?? "Balanced";
         _cpuFanSpeed = _settings.CpuManualSpeed;
         _gpuFanSpeed = _settings.GpuManualSpeed;
+
+        if (!string.IsNullOrEmpty(_settings.PreferredGpuId))
+        {
+            GpuManager.Instance.SetPreferredGpu(_settings.PreferredGpuId);
+        }
 
         // Initialize curves from presets or custom points
         LoadCpuCurvePreset(_cpuCurvePreset);
@@ -828,6 +867,23 @@ public class FanViewModel : INotifyPropertyChanged
         foreach (var s in reading.AllSensors)
             AllSensors.Add(s);
         OnPropertyChanged(nameof(SensorCountText));
+
+        // Synchronize DetectedGpus list
+        if (reading.DetectedGpus.Count > 0 && DetectedGpus.Count != reading.DetectedGpus.Count)
+        {
+            DetectedGpus.Clear();
+            foreach (var g in reading.DetectedGpus)
+                DetectedGpus.Add(g);
+
+            if (_selectedGpu == null && DetectedGpus.Count > 0)
+            {
+                var active = GpuManager.Instance.ActiveGpu;
+                _selectedGpu = DetectedGpus.FirstOrDefault(g => g.Id == active?.Id) ?? DetectedGpus[0];
+                OnPropertyChanged(nameof(SelectedGpu));
+            }
+        }
+        OnPropertyChanged(nameof(PlatformSummaryText));
+        OnPropertyChanged(nameof(BackendStatusText));
 
         // Overheat Protection Watchdog
         if (OverheatProtection && PeakTemp >= OverheatThreshold)

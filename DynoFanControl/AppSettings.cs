@@ -30,6 +30,7 @@ public class AppSettings
     public string ActivePreset { get; set; } = "Auto"; // Auto, Silent, Balanced, Turbo, Curve, Custom
     public int CpuManualSpeed { get; set; } = 50;
     public int GpuManualSpeed { get; set; } = 50;
+    public string? PreferredGpuId { get; set; }
 
     public bool SyncFanCurves { get; set; } = false; // False = Separate independent curves for CPU & GPU
     public string ActiveCurvePreset { get; set; } = "Balanced"; // Legacy fallback

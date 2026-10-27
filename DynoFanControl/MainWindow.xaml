@@ -151,10 +151,10 @@
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="DynoFanControl" FontSize="16" FontWeight="Bold" Foreground="White"/>
                                 <Border Background="#2B2E38" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center">
-                                    <TextBlock Text="NITRO 5" FontSize="9" FontWeight="Bold" Foreground="#E53935"/>
+                                    <TextBlock Text="UNIVERSAL" FontSize="9" FontWeight="Bold" Foreground="#00E5FF"/>
                                 </Border>
                             </StackPanel>
-                            <TextBlock Text="Acer Nitro AN515-45 • EC Hardware Control" FontSize="11" Foreground="#78909C"/>
+                            <TextBlock Text="{Binding PlatformSummaryText, Mode=OneWay}" FontSize="11" Foreground="#78909C" TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
                     </StackPanel>
 
@@ -194,7 +194,7 @@
                             <TextBlock Text="CPU TEMPERATURE" FontSize="10" FontWeight="SemiBold" Foreground="#78909C"/>
                             <TextBlock Text="{Binding CpuTempText}" FontSize="24" FontWeight="Bold"
                                        Foreground="{Binding CpuTemp, Converter={StaticResource TempBrush}}" Margin="0,2,0,0"/>
-                            <TextBlock Text="AMD Ryzen 5 5600H" FontSize="10" Foreground="#546E7A"/>
+                            <TextBlock Text="{Binding CpuModelName, Mode=OneWay}" FontSize="10" Foreground="#546E7A" TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
                             <TextBlock Text="TACHOMETER" FontSize="9" Foreground="#78909C" HorizontalAlignment="Right"/>
@@ -216,7 +216,8 @@
                             <TextBlock Text="GPU TEMPERATURE" FontSize="10" FontWeight="SemiBold" Foreground="#78909C"/>
                             <TextBlock Text="{Binding GpuTempText}" FontSize="24" FontWeight="Bold"
                                        Foreground="{Binding GpuTemp, Converter={StaticResource TempBrush}}" Margin="0,2,0,0"/>
-                            <TextBlock Text="{Binding GpuDetailsText}" FontSize="10" Foreground="#546E7A"/>
+                            <TextBlock Text="{Binding GpuName}" FontSize="10" Foreground="#90A4AE" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{Binding GpuDetailsText}" FontSize="10" Foreground="#546E7A" Margin="0,1,0,0"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
                             <TextBlock Text="TACHOMETER" FontSize="9" Foreground="#78909C" HorizontalAlignment="Right"/>
@@ -509,7 +510,7 @@
 
         <!-- Settings Modal Overlay -->
         <Grid Background="#B0000000" Visibility="{Binding IsSettingsOpen, Converter={StaticResource BoolToVis}}">
-            <Border Background="#1C1E24" CornerRadius="12" Padding="20" Width="440" Height="420"
+            <Border Background="#1C1E24" CornerRadius="12" Padding="20" Width="460" Height="490"
                     BorderBrush="#373B47" BorderThickness="1" VerticalAlignment="Center" HorizontalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -526,51 +527,62 @@
                     </Grid>
 
                     <!-- Settings Body -->
-                    <StackPanel Grid.Row="1">
-                        <!-- Startup -->
-                        <CheckBox Content="Start with Windows (Task Scheduler, no UAC prompt)"
-                                  IsChecked="{Binding StartWithWindows, Mode=TwoWay}"
-                                  Foreground="#ECEFF1" Margin="0,0,0,12"/>
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10">
+                        <StackPanel Margin="0,0,6,0">
+                            <!-- Startup -->
+                            <CheckBox Content="Start with Windows (Task Scheduler, no UAC prompt)"
+                                      IsChecked="{Binding StartWithWindows, Mode=TwoWay}"
+                                      Foreground="#ECEFF1" Margin="0,0,0,12"/>
 
-                        <!-- Start Minimized -->
-                        <CheckBox Content="Start Minimized to System Tray"
-                                  IsChecked="{Binding StartMinimized, Mode=TwoWay}"
-                                  Foreground="#ECEFF1" Margin="0,0,0,12"/>
+                            <!-- Start Minimized -->
+                            <CheckBox Content="Start Minimized to System Tray"
+                                      IsChecked="{Binding StartMinimized, Mode=TwoWay}"
+                                      Foreground="#ECEFF1" Margin="0,0,0,12"/>
 
-                        <!-- Close to Tray -->
-                        <CheckBox Content="Closing window minimizes to System Tray"
-                                  IsChecked="{Binding CloseToTray, Mode=TwoWay}"
-                                  Foreground="#ECEFF1" Margin="0,0,0,16"/>
+                            <!-- Close to Tray -->
+                            <CheckBox Content="Closing window minimizes to System Tray"
+                                      IsChecked="{Binding CloseToTray, Mode=TwoWay}"
+                                      Foreground="#ECEFF1" Margin="0,0,0,16"/>
 
-                        <Separator Background="#2A2D37" Margin="0,0,0,16"/>
+                            <Separator Background="#2A2D37" Margin="0,0,0,16"/>
 
-                        <!-- Overheat Protection -->
-                        <CheckBox Content="Enable Overheat Failsafe Protection"
-                                  IsChecked="{Binding OverheatProtection, Mode=TwoWay}"
-                                  Foreground="#ECEFF1" Margin="0,0,0,8"/>
+                            <!-- Overheat Protection -->
+                            <CheckBox Content="Enable Overheat Failsafe Protection"
+                                      IsChecked="{Binding OverheatProtection, Mode=TwoWay}"
+                                      Foreground="#ECEFF1" Margin="0,0,0,8"/>
 
-                        <TextBlock Text="Force 100% fans when temperature exceeds threshold to prevent throttling:"
-                                   FontSize="10" Foreground="#78909C" Margin="0,0,0,6"/>
+                            <TextBlock Text="Force 100% fans when temperature exceeds threshold to prevent throttling:"
+                                       FontSize="10" Foreground="#78909C" Margin="0,0,0,6"/>
 
-                        <Grid Margin="0,0,0,16">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <Slider Minimum="75" Maximum="95" Value="{Binding OverheatThreshold, Mode=TwoWay}"
-                                    IsEnabled="{Binding OverheatProtection}"/>
-                            <TextBlock Grid.Column="1" Text="{Binding OverheatThreshold, StringFormat='{}{0}°C'}"
-                                       FontSize="12" FontWeight="Bold" Foreground="#E53935"
-                                       VerticalAlignment="Center" Margin="10,0,0,0"/>
-                        </Grid>
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Minimum="75" Maximum="95" Value="{Binding OverheatThreshold, Mode=TwoWay}"
+                                        IsEnabled="{Binding OverheatProtection}"/>
+                                <TextBlock Grid.Column="1" Text="{Binding OverheatThreshold, StringFormat='{}{0}°C'}"
+                                           FontSize="12" FontWeight="Bold" Foreground="#E53935"
+                                           VerticalAlignment="Center" Margin="10,0,0,0"/>
+                            </Grid>
 
-                        <Separator Background="#2A2D37" Margin="0,0,0,12"/>
+                            <Separator Background="#2A2D37" Margin="0,0,0,14"/>
 
-                        <!-- Diagnostics Info -->
-                        <TextBlock Text="Hardware Diagnostics:" FontSize="10" FontWeight="Bold" Foreground="#78909C" Margin="0,0,0,4"/>
-                        <TextBlock Text="{Binding BackendStatusText, StringFormat='EC Backend: {0}'}" FontSize="10" Foreground="#B0BEC5"/>
-                        <TextBlock Text="Model: Acer Nitro AN515-45 • CPU: Ryzen 5 5600H • GPU: GTX 1650" FontSize="10" Foreground="#B0BEC5"/>
-                    </StackPanel>
+                            <!-- Multi-GPU Target Selector -->
+                            <TextBlock Text="Target GPU for Smart Fan Curve:" FontSize="10" FontWeight="Bold" Foreground="#78909C" Margin="0,0,0,4"/>
+                            <ComboBox ItemsSource="{Binding DetectedGpus}" SelectedItem="{Binding SelectedGpu, Mode=TwoWay}"
+                                      DisplayMemberPath="Name" Background="#262933" Foreground="#ECEFF1" Height="28" FontSize="11" Margin="0,0,0,14"/>
+
+                            <Separator Background="#2A2D37" Margin="0,0,0,14"/>
+
+                            <!-- Hardware Platform & Active Driver -->
+                            <TextBlock Text="Universal Hardware Diagnostics:" FontSize="10" FontWeight="Bold" Foreground="#78909C" Margin="0,0,0,4"/>
+                            <TextBlock Text="{Binding PlatformSummaryText, StringFormat='System: {0}'}" FontSize="10" Foreground="#B0BEC5" Margin="0,1"/>
+                            <TextBlock Text="{Binding BackendStatusText, StringFormat='Fan Driver: {0}'}" FontSize="10" Foreground="#00E5FF" Margin="0,1"/>
+                            <TextBlock Text="{Binding GpuName, StringFormat='Primary GPU: {0}'}" FontSize="10" Foreground="#B0BEC5" Margin="0,1"/>
+                            <TextBlock Text="{Binding CpuModelName, StringFormat='CPU: {0}'}" FontSize="10" Foreground="#B0BEC5" Margin="0,1"/>
+                        </StackPanel>
+                    </ScrollViewer>
 
                     <!-- Save / Close -->
                     <Button Grid.Row="2" Style="{StaticResource BaseBtn}" Height="32" Content="Done"
