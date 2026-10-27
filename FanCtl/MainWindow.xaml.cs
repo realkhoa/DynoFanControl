@@ -138,6 +138,11 @@ public partial class MainWindow : Window
         _vm.IsCurveEditorOpen = !_vm.IsCurveEditorOpen;
     }
 
+    private void SensorsToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.IsSensorsDrawerOpen = !_vm.IsSensorsDrawerOpen;
+    }
+
     private void CurveProfile_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button b && b.Tag is string profile)

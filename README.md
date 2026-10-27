@@ -9,6 +9,7 @@ A lightweight, high-performance, dark-themed fan control and thermal monitoring 
 Acer Nitro laptops often suffer from bloated, heavy background services (such as NitroSense / PredatorSense) or lack proper fan control after installing clean Windows without proprietary OEM software. FanCtl solves this problem by directly interfacing with the ACPI Embedded Controller (EC) and Windows Management Instrumentation (WMI) to provide:
 
 - **Ultra-fast hardware response** using native WinRing0 kernel driver IOCTLs (<0.1ms latency) with automatic fallback to `ec-probe.exe`.
+- **Advanced Multi-Sensor Telemetry**: Direct native NVIDIA Management Library (`nvml.dll`) integration for discrete GPU core temp, utilization (%), and power draw (W), combined with `LibreHardwareMonitorLib` for AMD Ryzen 5 5600H CPU package/cores, integrated Radeon APU, NVMe SSD storage, and ACPI thermal zones.
 - **Dual fan control**: Independent or linked CPU and GPU fan speed regulation (Auto, Silent 30%, Balanced 60%, Custom Manual, or Max Turbo).
 - **Acer CoolBoost™ integration**: Direct EC register manipulation for increased fan speed ceiling.
 - **Smart Temperature Curves**: Automatic fan speed modulation with exponential temperature smoothing and downward hysteresis to eliminate fan pulsing.

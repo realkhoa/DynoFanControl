@@ -11,6 +11,11 @@ public class HardwareReading
     public uint GpuRpm { get; set; }
     public bool CpuIsAuto { get; set; }
     public bool GpuIsAuto { get; set; }
+    public string GpuName { get; set; } = "NVIDIA GeForce GTX 1650";
+    public uint GpuUtilization { get; set; }
+    public double GpuPowerWatts { get; set; }
+    public bool GpuIsSleeping { get; set; }
+    public List<SensorItem> AllSensors { get; set; } = new();
 }
 
 public sealed class FanHardwareManager : IDisposable
@@ -52,11 +57,18 @@ public sealed class FanHardwareManager : IDisposable
 
     public void Initialize()
     {
-        // Try starting kernel driver service if needed
+        // 1. Try starting kernel driver service if needed
         EcProbeFallback.EnsureDriverService();
 
-        // Attempt direct EC driver initialization
+        // 2. Attempt direct EC driver initialization
         _directEcReady = _directEc.Initialize();
+
+        // 3. Initialize Sensor Monitor (NVML + LibreHardwareMonitor)
+        try
+        {
+            SensorMonitorService.Instance.Initialize();
+        }
+        catch { }
     }
 
     public bool WriteRegister(byte reg, byte val)
@@ -98,7 +110,6 @@ public sealed class FanHardwareManager : IDisposable
     {
         if (isAuto || speedPercent <= 0)
         {
-            // Restore BIOS control
             WriteRegister(REG_CPU_SPEED_WR, 0);
             return WriteRegister(REG_CPU_MANUAL, CPU_MANUAL_OFF);
         }
@@ -115,7 +126,6 @@ public sealed class FanHardwareManager : IDisposable
     {
         if (isAuto || speedPercent <= 0)
         {
-            // Restore BIOS control
             WriteRegister(REG_GPU_SPEED_WR, 0);
             return WriteRegister(REG_GPU_MANUAL, GPU_MANUAL_OFF);
         }
@@ -151,38 +161,19 @@ public sealed class FanHardwareManager : IDisposable
     {
         var reading = new HardwareReading();
 
-        // 1. Poll Temperatures from ACPI Thermal Zones
+        // 1. Read All Sensors via SensorMonitorService (NVML + LibreHardwareMonitor + ACPI)
         try
         {
-            var scope = new ManagementScope(@"\\.\root\wmi");
-            scope.Connect();
-
-            using var searcher = new ManagementObjectSearcher(scope, new ObjectQuery("SELECT * FROM MSAcpi_ThermalZoneTemperature"));
-            foreach (var obj in searcher.Get())
-            {
-                var raw = obj["CurrentTemperature"];
-                var name = obj["InstanceName"]?.ToString() ?? "";
-                if (raw != null)
-                {
-                    var deciKelvin = Convert.ToUInt32(raw);
-                    var celsius = Math.Round((deciKelvin / 10.0) - 273.15, 1);
-
-                    if (celsius is > 0 and < 125)
-                    {
-                        if (name.Contains("TZ01", StringComparison.OrdinalIgnoreCase))
-                            reading.CpuTemp = celsius;
-                        else if (name.Contains("TZ02", StringComparison.OrdinalIgnoreCase))
-                            reading.GpuTemp = celsius;
-                        else if (reading.CpuTemp == 0)
-                            reading.CpuTemp = celsius;
-                    }
-                }
-            }
+            var snapshot = SensorMonitorService.Instance.ReadAllSensors();
+            reading.CpuTemp = snapshot.CpuTemp;
+            reading.GpuTemp = snapshot.GpuTemp;
+            reading.GpuName = snapshot.GpuName;
+            reading.GpuUtilization = snapshot.GpuUtilization;
+            reading.GpuPowerWatts = snapshot.GpuPowerWatts;
+            reading.GpuIsSleeping = snapshot.GpuIsSleeping;
+            reading.AllSensors = snapshot.AllSensors;
         }
-        catch
-        {
-            // Ignore WMI errors during poll
-        }
+        catch { }
 
         // 2. Poll Fan RPM via AcerGamingFunction WMI
         try
@@ -222,10 +213,10 @@ public sealed class FanHardwareManager : IDisposable
         }
         catch
         {
-            // WMI RPM read error; try reading raw EC speed registers as fallback
+            // Fallback: read raw EC speed registers
             var cpuRaw = ReadRegister(REG_CPU_SPEED_RD);
             if (cpuRaw.HasValue && cpuRaw.Value > 0)
-                reading.CpuRpm = (uint)cpuRaw.Value * 60; // Approximate RPM scale if WMI fails
+                reading.CpuRpm = (uint)cpuRaw.Value * 60;
 
             var gpuRaw = ReadRegister(REG_GPU_SPEED_RD);
             if (gpuRaw.HasValue && gpuRaw.Value > 0)
@@ -240,6 +231,7 @@ public sealed class FanHardwareManager : IDisposable
         if (!_disposed)
         {
             _directEc.Dispose();
+            SensorMonitorService.Instance.Dispose();
             _disposed = true;
         }
     }

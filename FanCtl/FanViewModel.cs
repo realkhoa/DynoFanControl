@@ -38,12 +38,19 @@ public class FanViewModel : INotifyPropertyChanged
 
     private bool _isSettingsOpen;
     private bool _isCurveEditorOpen;
+    private bool _isSensorsDrawerOpen;
     private string _statusText = "Initializing...";
+
+    private string _gpuName = "NVIDIA GeForce GTX 1650";
+    private uint _gpuUtilization;
+    private double _gpuPowerWatts;
+    private bool _gpuIsSleeping;
 
     private bool _cpuDragging;
     private bool _gpuDragging;
 
     public ObservableCollection<CurvePoint> CurvePoints { get; } = new();
+    public ObservableCollection<SensorItem> AllSensors { get; } = new();
 
     public event Action<string>? TooltipUpdateRequested;
 
@@ -367,6 +374,39 @@ public class FanViewModel : INotifyPropertyChanged
         set { if (_isCurveEditorOpen != value) { _isCurveEditorOpen = value; OnPropertyChanged(); } }
     }
 
+    public bool IsSensorsDrawerOpen
+    {
+        get => _isSensorsDrawerOpen;
+        set { if (_isSensorsDrawerOpen != value) { _isSensorsDrawerOpen = value; OnPropertyChanged(); } }
+    }
+
+    public string GpuName
+    {
+        get => _gpuName;
+        private set { if (_gpuName != value) { _gpuName = value; OnPropertyChanged(); } }
+    }
+
+    public uint GpuUtilization
+    {
+        get => _gpuUtilization;
+        private set { if (_gpuUtilization != value) { _gpuUtilization = value; OnPropertyChanged(); OnPropertyChanged(nameof(GpuDetailsText)); } }
+    }
+
+    public double GpuPowerWatts
+    {
+        get => _gpuPowerWatts;
+        private set { if (Math.Abs(_gpuPowerWatts - value) > 0.05) { _gpuPowerWatts = value; OnPropertyChanged(); OnPropertyChanged(nameof(GpuDetailsText)); } }
+    }
+
+    public bool GpuIsSleeping
+    {
+        get => _gpuIsSleeping;
+        private set { if (_gpuIsSleeping != value) { _gpuIsSleeping = value; OnPropertyChanged(); OnPropertyChanged(nameof(GpuDetailsText)); } }
+    }
+
+    public string GpuDetailsText => GpuIsSleeping ? "Power Savings (Sleep)" : $"{GpuUtilization}% Load • {GpuPowerWatts:F1}W";
+    public string SensorCountText => $"{AllSensors.Count} Sensors Detected";
+
     public string BackendStatusText => FanHardwareManager.Instance.BackendStatus;
 
     public string StatusText
@@ -578,6 +618,16 @@ public class FanViewModel : INotifyPropertyChanged
         GpuTemp = reading.GpuTemp;
         CpuFanRpm = reading.CpuRpm;
         GpuFanRpm = reading.GpuRpm;
+        GpuName = reading.GpuName;
+        GpuUtilization = reading.GpuUtilization;
+        GpuPowerWatts = reading.GpuPowerWatts;
+        GpuIsSleeping = reading.GpuIsSleeping;
+
+        // Synchronize AllSensors list
+        AllSensors.Clear();
+        foreach (var s in reading.AllSensors)
+            AllSensors.Add(s);
+        OnPropertyChanged(nameof(SensorCountText));
 
         // Overheat Protection Watchdog
         if (OverheatProtection && PeakTemp >= OverheatThreshold)
@@ -603,7 +653,8 @@ public class FanViewModel : INotifyPropertyChanged
 
         // Update Tray Tooltip
         var modeStr = ActiveMode == "Auto" ? "Auto" : $"{CpuFanSpeed}%/{GpuFanSpeed}%";
-        var tip = $"FanCtl: CPU {CpuTempText} ({CpuFanRpmText}) | GPU {GpuTempText} ({GpuFanRpmText}) [{modeStr}]";
+        var gpuDesc = GpuIsSleeping ? "Sleep" : $"{GpuTempText} ({GpuUtilization}%)";
+        var tip = $"FanCtl: CPU {CpuTempText} ({CpuFanRpmText}) | GPU {gpuDesc} [{modeStr}]";
         TooltipUpdateRequested?.Invoke(tip);
     }
 

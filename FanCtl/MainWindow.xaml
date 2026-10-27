@@ -160,6 +160,10 @@
 
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button Style="{StaticResource BaseBtn}" Height="30" Padding="10,0" Margin="4,0"
+                                Click="SensorsToggle_Click" ToolTip="View All Hardware Temperature Sensors">
+                            <TextBlock Text="📊 Sensors" FontSize="11" FontWeight="SemiBold"/>
+                        </Button>
+                        <Button Style="{StaticResource BaseBtn}" Height="30" Padding="10,0" Margin="4,0"
                                 Click="CurveToggle_Click" ToolTip="Custom Fan Curve Editor">
                             <TextBlock Text="📈 Curves" FontSize="11" FontWeight="SemiBold"/>
                         </Button>
@@ -212,7 +216,7 @@
                             <TextBlock Text="GPU TEMPERATURE" FontSize="10" FontWeight="SemiBold" Foreground="#78909C"/>
                             <TextBlock Text="{Binding GpuTempText}" FontSize="24" FontWeight="Bold"
                                        Foreground="{Binding GpuTemp, Converter={StaticResource TempBrush}}" Margin="0,2,0,0"/>
-                            <TextBlock Text="NVIDIA GTX 1650" FontSize="10" Foreground="#546E7A"/>
+                            <TextBlock Text="{Binding GpuDetailsText}" FontSize="10" Foreground="#546E7A"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
                             <TextBlock Text="TACHOMETER" FontSize="9" Foreground="#78909C" HorizontalAlignment="Right"/>
@@ -381,6 +385,59 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- 4b. All Sensors Panel (Collapsible) -->
+            <Border Grid.Row="4" Background="#181A20" CornerRadius="8" Padding="12" Margin="0,0,0,10"
+                    BorderBrush="#303440" BorderThickness="1"
+                    Visibility="{Binding IsSensorsDrawerOpen, Converter={StaticResource BoolToVis}}">
+                <StackPanel>
+                    <Grid Margin="0,0,0,8">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="ALL TEMPERATURE &amp; HARDWARE SENSORS" FontSize="11" FontWeight="Bold" Foreground="#90A4AE" VerticalAlignment="Center"/>
+                            <Border Background="#2B2E38" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding SensorCountText}" FontSize="9" FontWeight="Bold" Foreground="#00E5FF"/>
+                            </Border>
+                        </StackPanel>
+                        <Button Content="✕" HorizontalAlignment="Right" Style="{StaticResource BaseBtn}"
+                                Width="22" Height="22" Padding="0" Click="SensorsToggle_Click"/>
+                    </Grid>
+
+                    <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto" Margin="0,4,0,0">
+                        <ItemsControl ItemsSource="{Binding AllSensors}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#20232B" CornerRadius="6" Padding="10,6" Margin="0,2,0,2"
+                                            BorderBrush="#2B2F3A" BorderThickness="1">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Category Badge -->
+                                            <Border Background="#2A2E3A" CornerRadius="4" Padding="6,2" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Category}" FontSize="9" FontWeight="Bold" Foreground="#90A4AE"/>
+                                            </Border>
+
+                                            <!-- Name & Subtext -->
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold" Foreground="#ECEFF1"/>
+                                                <TextBlock Text="{Binding Subtext}" FontSize="9" Foreground="#607D8B" Margin="0,1,0,0"/>
+                                            </StackPanel>
+
+                                            <!-- Live Value with dynamic temp color -->
+                                            <TextBlock Grid.Column="2" Text="{Binding FormattedValue}" FontSize="13" FontWeight="Bold"
+                                                       Foreground="{Binding Value, Converter={StaticResource TempBrush}}"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
                 </StackPanel>
             </Border>
 
