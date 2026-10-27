@@ -1,7 +1,7 @@
 using System.Management;
 using LibreHardwareMonitor.Hardware;
 
-namespace FanCtl.Hardware;
+namespace DynoFanControl.Hardware;
 
 public class SensorItem
 {

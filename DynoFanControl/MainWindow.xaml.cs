@@ -2,10 +2,10 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using FanCtl.Services;
-using FanCtl.ViewModels;
+using DynoFanControl.Services;
+using DynoFanControl.ViewModels;
 
-namespace FanCtl;
+namespace DynoFanControl;
 
 public partial class MainWindow : Window
 {

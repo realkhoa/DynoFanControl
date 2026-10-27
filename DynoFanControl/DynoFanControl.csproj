@@ -6,6 +6,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <AssemblyName>DynoFanControl</AssemblyName>
+    <RootNamespace>DynoFanControl</RootNamespace>
+    <Product>DynoFanControl</Product>
+    <AssemblyTitle>DynoFanControl</AssemblyTitle>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x64</Platforms>

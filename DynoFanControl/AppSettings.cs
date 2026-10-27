@@ -1,7 +1,7 @@
 using System.IO;
 using System.Text.Json;
 
-namespace FanCtl;
+namespace DynoFanControl;
 
 public class CurvePoint
 {
@@ -70,8 +70,11 @@ public class AppSettings
 public static class ConfigManager
 {
     private static readonly string ConfigDir = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DynoFanControl");
+    private static readonly string LegacyConfigDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FanCtl");
     private static readonly string ConfigPath = Path.Combine(ConfigDir, "config.json");
+    private static readonly string LegacyConfigPath = Path.Combine(LegacyConfigDir, "config.json");
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     public static AppSettings Load()
@@ -83,6 +86,16 @@ public static class ConfigManager
                 var json = File.ReadAllText(ConfigPath);
                 var settings = JsonSerializer.Deserialize<AppSettings>(json);
                 if (settings != null) return settings;
+            }
+            else if (File.Exists(LegacyConfigPath))
+            {
+                var json = File.ReadAllText(LegacyConfigPath);
+                var settings = JsonSerializer.Deserialize<AppSettings>(json);
+                if (settings != null)
+                {
+                    Save(settings);
+                    return settings;
+                }
             }
         }
         catch

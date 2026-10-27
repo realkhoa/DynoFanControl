@@ -1,9 +1,17 @@
-bin/
-obj/
-*.bak.exe
-*.old.exe
+# Build & Publish outputs
+[Bb]in/
+[Oo]bj/
+[Pp]ublish/
+
+# Visual Studio & IDE metadata
+.vs/
+.commandcode/
 *.user
 *.suo
-.vs/
-.CommandCode/
-Publish/
+*.userosscache
+*.sln.docstates
+
+# Backup / temp executables
+*.bak.exe
+*.old.exe
+*.tmp

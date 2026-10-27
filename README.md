@@ -1,4 +1,4 @@
-# FanCtl — Acer Nitro 5 (AN515-45) Fan Controller
+# DynoFanControl — Acer Nitro 5 (AN515-45) Fan Controller
 
 A lightweight, high-performance, dark-themed fan control and thermal monitoring utility for the **Acer Nitro 5 (AN515-45)** laptop family running Windows 10/11.
 
@@ -6,7 +6,7 @@ A lightweight, high-performance, dark-themed fan control and thermal monitoring 
 
 ## 1. Purpose & Scope
 
-Acer Nitro laptops often suffer from bloated, heavy background services (such as NitroSense / PredatorSense) or lack proper fan control after installing clean Windows without proprietary OEM software. FanCtl solves this problem by directly interfacing with the ACPI Embedded Controller (EC) and Windows Management Instrumentation (WMI) to provide:
+Acer Nitro laptops often suffer from bloated, heavy background services (such as NitroSense / PredatorSense) or lack proper fan control after installing clean Windows without proprietary OEM software. DynoFanControl solves this problem by directly interfacing with the ACPI Embedded Controller (EC) and Windows Management Instrumentation (WMI) to provide:
 
 - **Ultra-fast hardware response** using native WinRing0 kernel driver IOCTLs (<0.1ms latency) with automatic fallback to `ec-probe.exe`.
 - **Advanced Multi-Sensor Telemetry**: Direct native NVIDIA Management Library (`nvml.dll`) integration for discrete GPU core temp, utilization (%), and power draw (W), combined with `LibreHardwareMonitorLib` for AMD Ryzen 5 5600H CPU package/cores, integrated Radeon APU, NVMe SSD storage, and ACPI thermal zones.
@@ -23,7 +23,7 @@ Acer Nitro laptops often suffer from bloated, heavy background services (such as
 
 ## 2. Architecture & Data Flow
 
-FanCtl follows a decoupled, 4-tier architecture:
+DynoFanControl follows a decoupled, 4-tier architecture:
 
 ```
 [ UI Layer (WPF / XAML) ]
@@ -38,12 +38,14 @@ FanCtl follows a decoupled, 4-tier architecture:
 [ Hardware Abstraction Layer (FanHardwareManager) ]
         ├── DirectEcDriver (WinRing0 Kernel Driver IOCTLs: 0x9C4060CC / 0x9C40A0D8)
         ├── EcProbeFallback (ec-probe.exe CLI runner)
+        ├── NvmlDriver (P/Invoke to native nvml.dll for NVIDIA dGPU)
+        ├── SensorMonitorService (LibreHardwareMonitor + NVML + ACPI WMI)
         └── AcerWmi (root\wmi: AcerGamingFunction & MSAcpi_ThermalZoneTemperature)
 ```
 
 ### Data Flow
-1. **Hardware Polling**: `FanHardwareManager` polls ACPI Thermal Zones (`TZ01` CPU, `TZ02` GPU) and invokes WMI `GetGamingFanSpeed` to retrieve live tachometer RPM readings.
-2. **Curve Evaluation**: In "Curve" mode, `FanCurveController` calculates the target fan percentage based on smoothed peak temperatures and user-defined curve points.
+1. **Hardware Polling**: `FanHardwareManager` polls ACPI Thermal Zones, NVML native driver, and LibreHardwareMonitor for all sensors, and queries WMI `GetGamingFanSpeed` to retrieve live tachometer RPM readings.
+2. **Curve Evaluation**: In "Curve" mode, dual `FanCurveController` instances calculate target fan percentages independently for CPU and GPU based on smoothed temperatures and active curve profiles.
 3. **Safety Watchdog**: If peak temperatures exceed the overheat threshold, the watchdog temporarily overrides manual settings to force 100% cooling.
 4. **Hardware Write**: Write commands are sent to `DirectEcDriver` (primary IOCTLs to `\\.\WinRing0_1_2_0`) or `EcProbeFallback` (fallback process).
 5. **UI & Tray Update**: Reactive properties update the WPF window and system tray tooltip.
@@ -96,7 +98,7 @@ FanCtl follows a decoupled, 4-tier architecture:
 - Mutex synchronization (`_lock`) guarantees atomic EC read/write sequences, preventing interleaved commands from freezing the controller.
 
 ### Windows Task Scheduler Auto-Start
-Standard `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` registry entries are blocked by Windows UAC on login for applications requiring Administrator privileges. FanCtl solves this by registering an elevated logon task via `schtasks.exe /rl highest`, allowing silent startup directly into the system tray without UAC prompts.
+Standard `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` registry entries are blocked by Windows UAC on login for applications requiring Administrator privileges. DynoFanControl solves this by registering an elevated logon task via `schtasks.exe /rl highest`, allowing silent startup directly into the system tray without UAC prompts.
 
 ---
 
@@ -104,9 +106,12 @@ Standard `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` registry entries a
 
 ```powershell
 # Build Debug
-dotnet build FanCtl.sln
+dotnet build DynoFanControl.sln
 
 # Build Release x64 using MSBuild
-msbuild FanCtl.sln /p:Configuration=Release /p:Platform=x64 /m /v:m
+msbuild DynoFanControl.sln /p:Configuration=Release /p:Platform=x64 /m /v:m
+
+# Publish standalone/framework-dependent distribution
+dotnet publish DynoFanControl\DynoFanControl.csproj -c Release -r win-x64 --self-contained false -o Publish
 ```
-Output binaries are generated in `FanCtl\bin\x64\Release\net9.0-windows\`.
+Output binaries are generated in `Publish\DynoFanControl.exe`.

@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace FanCtl;
+namespace DynoFanControl;
 
 internal static class WinRing0
 {

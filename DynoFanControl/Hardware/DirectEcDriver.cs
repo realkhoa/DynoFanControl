@@ -2,7 +2,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
-namespace FanCtl.Hardware;
+namespace DynoFanControl.Hardware;
 
 /// <summary>
 /// Direct ACPI Embedded Controller (EC) communication via WinRing0 kernel driver IOCTLs.

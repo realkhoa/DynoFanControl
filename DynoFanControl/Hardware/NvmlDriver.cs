@@ -1,7 +1,7 @@
 using System.IO;
 using System.Runtime.InteropServices;
 
-namespace FanCtl.Hardware;
+namespace DynoFanControl.Hardware;
 
 public class NvGpuInfo
 {

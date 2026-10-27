@@ -1,12 +1,12 @@
 using System.Threading;
 using System.Windows;
-using FanCtl.Hardware;
+using DynoFanControl.Hardware;
 
-namespace FanCtl;
+namespace DynoFanControl;
 
 public partial class App : Application
 {
-    private const string MutexName = "Global\\FanCtl_AcerNitro5_SingleInstance_Mutex";
+    private const string MutexName = "Global\\DynoFanControl_Nitro_SingleInstance_Mutex";
     private Mutex? _mutex;
 
     public static bool StartMinimized { get; private set; }

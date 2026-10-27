@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 
-namespace FanCtl.Hardware;
+namespace DynoFanControl.Hardware;
 
 /// <summary>
 /// Fallback backend that controls EC registers via ec-probe.exe process execution.

@@ -1,9 +1,9 @@
-<Window x:Class="FanCtl.MainWindow"
+<Window x:Class="DynoFanControl.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:local="clr-namespace:FanCtl"
-        xmlns:vm="clr-namespace:FanCtl.ViewModels"
-        Title="FanCtl — Acer Nitro 5"
+        xmlns:local="clr-namespace:DynoFanControl"
+        xmlns:vm="clr-namespace:DynoFanControl.ViewModels"
+        Title="DynoFanControl — Acer Nitro 5"
         Height="620" Width="540"
         MinHeight="580" MinWidth="500"
         WindowStartupLocation="CenterScreen"
@@ -106,7 +106,7 @@
 
         <!-- Context Menu for Tray -->
         <ContextMenu x:Key="TrayMenu">
-            <MenuItem Header="Show FanCtl" FontWeight="Bold" Click="TrayShow_Click"/>
+            <MenuItem Header="Show DynoFanControl" FontWeight="Bold" Click="TrayShow_Click"/>
             <Separator/>
             <MenuItem Header="● Auto Mode (BIOS)" Click="TrayMode_Click" Tag="Auto"/>
             <MenuItem Header="● Silent Mode (30%)" Click="TrayMode_Click" Tag="Silent"/>
@@ -116,7 +116,7 @@
             <Separator/>
             <MenuItem Header="❄ CoolBoost" IsCheckable="True" IsChecked="{Binding CoolBoost, Mode=TwoWay}"/>
             <Separator/>
-            <MenuItem Header="Exit FanCtl" Click="TrayExit_Click"/>
+            <MenuItem Header="Exit DynoFanControl" Click="TrayExit_Click"/>
         </ContextMenu>
     </Window.Resources>
 
@@ -149,7 +149,7 @@
                         </Border>
                         <StackPanel>
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="FanCtl" FontSize="16" FontWeight="Bold" Foreground="White"/>
+                                <TextBlock Text="DynoFanControl" FontSize="16" FontWeight="Bold" Foreground="White"/>
                                 <Border Background="#2B2E38" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="NITRO 5" FontSize="9" FontWeight="Bold" Foreground="#E53935"/>
                                 </Border>
@@ -502,7 +502,7 @@
                     <TextBlock Grid.Column="1" Text="{Binding StatusText}" FontSize="11"
                                Foreground="#B0BEC5" VerticalAlignment="Center" Margin="12,0" TextTrimming="CharacterEllipsis"/>
 
-                    <TextBlock Grid.Column="2" Text="v2.0 Nitro" FontSize="10" Foreground="#546E7A" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="DynoFanControl v2.0" FontSize="10" Foreground="#546E7A" VerticalAlignment="Center"/>
                 </Grid>
             </Border>
         </Grid>

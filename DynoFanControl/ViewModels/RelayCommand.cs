@@ -1,6 +1,6 @@
 using System.Windows.Input;
 
-namespace FanCtl.ViewModels;
+namespace DynoFanControl.ViewModels;
 
 public class RelayCommand : ICommand
 {

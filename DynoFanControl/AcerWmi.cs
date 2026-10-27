@@ -1,6 +1,6 @@
 using System.Management;
 
-namespace FanCtl;
+namespace DynoFanControl;
 
 public static class AcerWmi
 {

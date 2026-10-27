@@ -1,4 +1,4 @@
-namespace FanCtl.Services;
+namespace DynoFanControl.Services;
 
 /// <summary>
 /// Controls fan speeds dynamically based on temperature curves with hysteresis smoothing.

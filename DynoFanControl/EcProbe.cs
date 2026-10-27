@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 
-namespace FanCtl;
+namespace DynoFanControl;
 
 public static class EcProbe
 {

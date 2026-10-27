@@ -1,15 +1,15 @@
 using System.Diagnostics;
 using System.IO;
 
-namespace FanCtl.Services;
+namespace DynoFanControl.Services;
 
 /// <summary>
-/// Manages running FanCtl on Windows startup.
+/// Manages running DynoFanControl on Windows startup.
 /// Uses Windows Task Scheduler with Highest Privileges to bypass UAC prompts on login.
 /// </summary>
 public static class StartupManager
 {
-    private const string TaskName = "FanCtl_NitroAutoStart";
+    private const string TaskName = "DynoFanControl_NitroAutoStart";
 
     public static bool IsStartupEnabled()
     {
@@ -43,7 +43,7 @@ public static class StartupManager
         {
             if (enable)
             {
-                var exePath = Environment.ProcessPath ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "FanCtl.exe");
+                var exePath = Environment.ProcessPath ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DynoFanControl.exe");
                 var args = startMinimized ? "--minimized" : "";
                 var taskRun = $"\\\"{exePath}\\\" {args}".Trim();
 

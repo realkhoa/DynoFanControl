@@ -4,7 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 
-namespace FanCtl.Services;
+namespace DynoFanControl.Services;
 
 /// <summary>
 /// Native Win32 System Tray implementation for WPF with modern WPF ContextMenu support.
@@ -89,7 +89,7 @@ public sealed class TrayIconManager : IDisposable
             source?.AddHook(WndProc);
 
             // Load Icon from executable or fallback
-            var exePath = Environment.ProcessPath ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "FanCtl.exe");
+            var exePath = Environment.ProcessPath ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DynoFanControl.exe");
             _hIcon = ExtractIcon(IntPtr.Zero, exePath, 0);
             if (_hIcon == IntPtr.Zero)
             {
@@ -104,7 +104,7 @@ public sealed class TrayIconManager : IDisposable
                 uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP,
                 uCallbackMessage = WM_TRAYICON,
                 hIcon = _hIcon,
-                szTip = "FanCtl — Acer Nitro 5"
+                szTip = "DynoFanControl — Acer Nitro 5"
             };
 
             _isAdded = Shell_NotifyIcon(NIM_ADD, ref nid);

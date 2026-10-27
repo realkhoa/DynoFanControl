@@ -1,6 +1,6 @@
 using System.Management;
 
-namespace FanCtl.Hardware;
+namespace DynoFanControl.Hardware;
 
 public class HardwareReading
 {

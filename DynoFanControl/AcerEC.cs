@@ -1,4 +1,4 @@
-namespace FanCtl;
+namespace DynoFanControl;
 
 /// <summary>
 /// Direct EC register access for Acer Nitro AN515-45 via WinRing0 I/O ports.

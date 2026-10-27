@@ -3,10 +3,10 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Media;
 using System.Windows.Threading;
-using FanCtl.Hardware;
-using FanCtl.Services;
+using DynoFanControl.Hardware;
+using DynoFanControl.Services;
 
-namespace FanCtl;
+namespace DynoFanControl;
 
 public class FanViewModel : INotifyPropertyChanged
 {
@@ -863,7 +863,7 @@ public class FanViewModel : INotifyPropertyChanged
         // Update Tray Tooltip
         var modeStr = ActiveMode == "Auto" ? "Auto" : $"{CpuFanSpeed}%/{GpuFanSpeed}%";
         var gpuDesc = GpuIsSleeping ? "Sleep" : $"{GpuTempText} ({GpuUtilization}%)";
-        var tip = $"FanCtl: CPU {CpuTempText} ({CpuFanRpmText}) | GPU {gpuDesc} [{modeStr}]";
+        var tip = $"DynoFanControl: CPU {CpuTempText} ({CpuFanRpmText}) | GPU {gpuDesc} [{modeStr}]";
         TooltipUpdateRequested?.Invoke(tip);
     }
 
