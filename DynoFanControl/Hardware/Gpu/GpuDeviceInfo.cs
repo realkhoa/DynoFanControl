@@ -24,6 +24,13 @@ public class GpuDeviceInfo
     public bool HasFanControl { get; set; }
     public string DriverVersion { get; set; } = "";
     public string VramTotalText { get; set; } = "";
+    public uint CoreClockMhz { get; set; }
+    public uint MemoryClockMhz { get; set; }
+    public double VramUsedMb { get; set; }
+    public double VramTotalMb { get; set; }
+
+    public string FormattedClocks => CoreClockMhz > 0 ? $"{CoreClockMhz} MHz Core • {MemoryClockMhz} MHz Mem" : "";
+    public string FormattedVram => VramTotalMb > 0 ? $"{VramUsedMb:F0} / {VramTotalMb:F0} MB ({((VramUsedMb / VramTotalMb) * 100):F0}%)" : "";
 
     public string VendorBadge => Vendor switch
     {

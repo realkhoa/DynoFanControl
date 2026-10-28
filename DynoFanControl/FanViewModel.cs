@@ -7,7 +7,10 @@ using System.Windows.Threading;
 using DynoFanControl.Hardware;
 using DynoFanControl.Hardware.Drivers;
 using DynoFanControl.Hardware.Gpu;
+using DynoFanControl.Hardware.Tuning;
+using DynoFanControl.Models;
 using DynoFanControl.Services;
+using DynoFanControl.Services.Osd;
 
 namespace DynoFanControl;
 
@@ -98,7 +101,21 @@ public class FanViewModel : INotifyPropertyChanged
     private bool _isSettingsOpen;
     private bool _isCurveEditorOpen;
     private bool _isSensorsDrawerOpen;
+    private bool _isTuningOpen;
+    private bool _isMonitorOpen;
+    private bool _isOsdOpen;
     private string _statusText = "Initializing...";
+
+    // MSI Afterburner Suite: GPU Clock & Voltage Tuning Fields
+    private int _coreClockOffset;
+    private int _memoryClockOffset;
+    private int _powerLimitPercent = 100;
+    private int _tempLimitCelsius = 83;
+    private int _voltageOffsetMv;
+    private bool _applyTuningAtStartup;
+    private string _tuningStatusText = "Stock Clocks";
+    private int _activeTuningSlot = 1;
+    private string _gpuClocksLiveText = "-- MHz Core | -- MHz Mem";
 
     private string _gpuName = "NVIDIA GeForce GTX 1650";
     private uint _gpuUtilization;
@@ -114,6 +131,21 @@ public class FanViewModel : INotifyPropertyChanged
 
     public ObservableCollection<SensorItem> AllSensors { get; } = new();
     public ObservableCollection<GpuDeviceInfo> DetectedGpus { get; } = new();
+
+    // MSI Afterburner Suite: 11 Rolling Telemetry Monitoring Series
+    public TelemetrySeries SeriesGpuTemp { get; } = new("GPU Temperature", "°C", "#FFD600", 60, 220, 60, 20, 100);
+    public TelemetrySeries SeriesGpuCoreClock { get; } = new("GPU Core Clock", " MHz", "#00E5FF", 60, 220, 60, 300, 2200);
+    public TelemetrySeries SeriesGpuMemoryClock { get; } = new("GPU Memory Clock", " MHz", "#7C4DFF", 60, 220, 60, 400, 8000);
+    public TelemetrySeries SeriesGpuCoreLoad { get; } = new("GPU Core Load", "%", "#00E676", 60, 220, 60, 0, 100);
+    public TelemetrySeries SeriesGpuPower { get; } = new("GPU Power Draw", "W", "#FF9100", 60, 220, 60, 0, 150);
+    public TelemetrySeries SeriesGpuVramUsage { get; } = new("GPU VRAM Usage", " MB", "#E040FB", 60, 220, 60, 0, 8192);
+    public TelemetrySeries SeriesGpuFanRpm { get; } = new("GPU Fan Tachometer", " RPM", "#40C4FF", 60, 220, 60, 0, 6000);
+    public TelemetrySeries SeriesCpuTemp { get; } = new("CPU Temperature", "°C", "#FF5252", 60, 220, 60, 20, 105);
+    public TelemetrySeries SeriesCpuPackageLoad { get; } = new("CPU Package Load", "%", "#69F0AE", 60, 220, 60, 0, 100);
+    public TelemetrySeries SeriesCpuPackagePower { get; } = new("CPU Package Power", "W", "#FFD740", 60, 220, 60, 0, 120);
+    public TelemetrySeries SeriesRamUsage { get; } = new("System RAM Usage", "%", "#B0BEC5", 60, 220, 60, 0, 100);
+
+    public ObservableCollection<TelemetrySeries> TelemetrySeriesList { get; } = new();
 
     private GpuDeviceInfo? _selectedGpu;
     public GpuDeviceInfo? SelectedGpu
@@ -182,6 +214,41 @@ public class FanViewModel : INotifyPropertyChanged
         // Initialize curves from presets or custom points
         LoadCpuCurvePreset(_cpuCurvePreset);
         LoadGpuCurvePreset(_gpuCurvePreset);
+
+        // Populate Telemetry Series list for XAML binding
+        TelemetrySeriesList.Add(SeriesGpuTemp);
+        TelemetrySeriesList.Add(SeriesGpuCoreClock);
+        TelemetrySeriesList.Add(SeriesGpuMemoryClock);
+        TelemetrySeriesList.Add(SeriesGpuCoreLoad);
+        TelemetrySeriesList.Add(SeriesGpuPower);
+        TelemetrySeriesList.Add(SeriesGpuVramUsage);
+        TelemetrySeriesList.Add(SeriesGpuFanRpm);
+        TelemetrySeriesList.Add(SeriesCpuTemp);
+        TelemetrySeriesList.Add(SeriesCpuPackageLoad);
+        TelemetrySeriesList.Add(SeriesCpuPackagePower);
+        TelemetrySeriesList.Add(SeriesRamUsage);
+
+        // Initialize GPU Tuning Subsystem (MSI Afterburner Engine)
+        _applyTuningAtStartup = _settings.ApplyTuningAtStartup;
+        if (_settings.CurrentTuningProfile != null)
+        {
+            _coreClockOffset = _settings.CurrentTuningProfile.CoreClockOffsetMhz;
+            _memoryClockOffset = _settings.CurrentTuningProfile.MemoryClockOffsetMhz;
+            _powerLimitPercent = _settings.CurrentTuningProfile.PowerLimitPercent;
+            _tempLimitCelsius = _settings.CurrentTuningProfile.TempLimitCelsius;
+            _voltageOffsetMv = _settings.CurrentTuningProfile.VoltageOffsetMv;
+        }
+
+        GpuTuningManager.Instance.Initialize();
+        if (_applyTuningAtStartup && _settings.CurrentTuningProfile != null)
+        {
+            try
+            {
+                GpuTuningManager.Instance.ApplyProfile(_settings.CurrentTuningProfile);
+                _tuningStatusText = GpuTuningManager.Instance.LastStatus;
+            }
+            catch { }
+        }
 
         // 2. Initialize hardware
         FanHardwareManager.Instance.Initialize();
@@ -745,6 +812,184 @@ public class FanViewModel : INotifyPropertyChanged
         set { if (_isSensorsDrawerOpen != value) { _isSensorsDrawerOpen = value; OnPropertyChanged(); } }
     }
 
+    public bool IsTuningOpen
+    {
+        get => _isTuningOpen;
+        set { if (_isTuningOpen != value) { _isTuningOpen = value; OnPropertyChanged(); } }
+    }
+
+    public bool IsMonitorOpen
+    {
+        get => _isMonitorOpen;
+        set { if (_isMonitorOpen != value) { _isMonitorOpen = value; OnPropertyChanged(); } }
+    }
+
+    public bool IsOsdOpen
+    {
+        get => _isOsdOpen;
+        set { if (_isOsdOpen != value) { _isOsdOpen = value; OnPropertyChanged(); } }
+    }
+
+    // MSI Afterburner Suite: GPU Tuning Properties
+    public int CoreClockOffset
+    {
+        get => _coreClockOffset;
+        set { if (_coreClockOffset != value) { _coreClockOffset = value; OnPropertyChanged(); OnPropertyChanged(nameof(CoreClockOffsetText)); } }
+    }
+    public string CoreClockOffsetText => CoreClockOffset >= 0 ? $"+{CoreClockOffset} MHz" : $"{CoreClockOffset} MHz";
+
+    public int MemoryClockOffset
+    {
+        get => _memoryClockOffset;
+        set { if (_memoryClockOffset != value) { _memoryClockOffset = value; OnPropertyChanged(); OnPropertyChanged(nameof(MemoryClockOffsetText)); } }
+    }
+    public string MemoryClockOffsetText => MemoryClockOffset >= 0 ? $"+{MemoryClockOffset} MHz" : $"{MemoryClockOffset} MHz";
+
+    public int PowerLimitPercent
+    {
+        get => _powerLimitPercent;
+        set { if (_powerLimitPercent != value) { _powerLimitPercent = value; OnPropertyChanged(); OnPropertyChanged(nameof(PowerLimitPercentText)); } }
+    }
+    public string PowerLimitPercentText => $"{PowerLimitPercent}%";
+
+    public int TempLimitCelsius
+    {
+        get => _tempLimitCelsius;
+        set { if (_tempLimitCelsius != value) { _tempLimitCelsius = value; OnPropertyChanged(); OnPropertyChanged(nameof(TempLimitCelsiusText)); } }
+    }
+    public string TempLimitCelsiusText => $"{TempLimitCelsius}°C";
+
+    public int VoltageOffsetMv
+    {
+        get => _voltageOffsetMv;
+        set { if (_voltageOffsetMv != value) { _voltageOffsetMv = value; OnPropertyChanged(); OnPropertyChanged(nameof(VoltageOffsetMvText)); } }
+    }
+    public string VoltageOffsetMvText => VoltageOffsetMv > 0 ? $"+{VoltageOffsetMv} mV" : $"{VoltageOffsetMv} mV";
+
+    public bool ApplyTuningAtStartup
+    {
+        get => _applyTuningAtStartup;
+        set
+        {
+            if (_applyTuningAtStartup != value)
+            {
+                _applyTuningAtStartup = value;
+                OnPropertyChanged();
+                _settings.ApplyTuningAtStartup = value;
+                ConfigManager.Save(_settings);
+            }
+        }
+    }
+
+    public string TuningStatusText
+    {
+        get => _tuningStatusText;
+        set { if (_tuningStatusText != value) { _tuningStatusText = value; OnPropertyChanged(); } }
+    }
+
+    public int ActiveTuningSlot
+    {
+        get => _activeTuningSlot;
+        set { if (_activeTuningSlot != value) { _activeTuningSlot = value; OnPropertyChanged(); } }
+    }
+
+    public string GpuClocksLiveText
+    {
+        get => _gpuClocksLiveText;
+        private set { if (_gpuClocksLiveText != value) { _gpuClocksLiveText = value; OnPropertyChanged(); } }
+    }
+
+    // MSI Afterburner Suite: RTSS In-Game OSD Properties
+    public bool OsdEnabled
+    {
+        get => _settings.Osd.Enabled;
+        set
+        {
+            if (_settings.Osd.Enabled != value)
+            {
+                _settings.Osd.Enabled = value;
+                OnPropertyChanged();
+                if (!value) RtssOsdService.Instance.ClearOsd();
+                ConfigManager.Save(_settings);
+            }
+        }
+    }
+
+    public bool OsdShowGpuTemp
+    {
+        get => _settings.Osd.ShowGpuTemp;
+        set { if (_settings.Osd.ShowGpuTemp != value) { _settings.Osd.ShowGpuTemp = value; OnPropertyChanged(); ConfigManager.Save(_settings); } }
+    }
+    public bool OsdShowGpuLoad
+    {
+        get => _settings.Osd.ShowGpuLoad;
+        set { if (_settings.Osd.ShowGpuLoad != value) { _settings.Osd.ShowGpuLoad = value; OnPropertyChanged(); ConfigManager.Save(_settings); } }
+    }
+    public bool OsdShowGpuClocks
+    {
+        get => _settings.Osd.ShowGpuClocks;
+        set { if (_settings.Osd.ShowGpuClocks != value) { _settings.Osd.ShowGpuClocks = value; OnPropertyChanged(); ConfigManager.Save(_settings); } }
+    }
+    public bool OsdShowGpuPower
+    {
+        get => _settings.Osd.ShowGpuPower;
+        set { if (_settings.Osd.ShowGpuPower != value) { _settings.Osd.ShowGpuPower = value; OnPropertyChanged(); ConfigManager.Save(_settings); } }
+    }
+    public bool OsdShowGpuVram
+    {
+        get => _settings.Osd.ShowGpuVram;
+        set { if (_settings.Osd.ShowGpuVram != value) { _settings.Osd.ShowGpuVram = value; OnPropertyChanged(); ConfigManager.Save(_settings); } }
+    }
+    public bool OsdShowGpuFanRpm
+    {
+        get => _settings.Osd.ShowGpuFanRpm;
+        set { if (_settings.Osd.ShowGpuFanRpm != value) { _settings.Osd.ShowGpuFanRpm = value; OnPropertyChanged(); ConfigManager.Save(_settings); } }
+    }
+    public bool OsdShowCpuTemp
+    {
+        get => _settings.Osd.ShowCpuTemp;
+        set { if (_settings.Osd.ShowCpuTemp != value) { _settings.Osd.ShowCpuTemp = value; OnPropertyChanged(); ConfigManager.Save(_settings); } }
+    }
+    public bool OsdShowCpuLoad
+    {
+        get => _settings.Osd.ShowCpuLoad;
+        set { if (_settings.Osd.ShowCpuLoad != value) { _settings.Osd.ShowCpuLoad = value; OnPropertyChanged(); ConfigManager.Save(_settings); } }
+    }
+    public bool OsdShowCpuPower
+    {
+        get => _settings.Osd.ShowCpuPower;
+        set { if (_settings.Osd.ShowCpuPower != value) { _settings.Osd.ShowCpuPower = value; OnPropertyChanged(); ConfigManager.Save(_settings); } }
+    }
+    public bool OsdShowCpuFanRpm
+    {
+        get => _settings.Osd.ShowCpuFanRpm;
+        set { if (_settings.Osd.ShowCpuFanRpm != value) { _settings.Osd.ShowCpuFanRpm = value; OnPropertyChanged(); ConfigManager.Save(_settings); } }
+    }
+    public bool OsdShowRamUsage
+    {
+        get => _settings.Osd.ShowRamUsage;
+        set { if (_settings.Osd.ShowRamUsage != value) { _settings.Osd.ShowRamUsage = value; OnPropertyChanged(); ConfigManager.Save(_settings); } }
+    }
+    public bool OsdShowActivePreset
+    {
+        get => _settings.Osd.ShowActivePreset;
+        set { if (_settings.Osd.ShowActivePreset != value) { _settings.Osd.ShowActivePreset = value; OnPropertyChanged(); ConfigManager.Save(_settings); } }
+    }
+
+    private string _rtssStatusText = "⚪ RTSS Not Detected";
+    public string RtssStatusText
+    {
+        get => _rtssStatusText;
+        private set { if (_rtssStatusText != value) { _rtssStatusText = value; OnPropertyChanged(); } }
+    }
+
+    private string _osdPreviewText = "GPU 45°C  40%  1530MHz  1420MB  45.0W\nCPU 50°C  25%  35.0W  2100RPM\nRAM 8.5GB / 16.0GB  [BALANCED]";
+    public string OsdPreviewText
+    {
+        get => _osdPreviewText;
+        private set { if (_osdPreviewText != value) { _osdPreviewText = value; OnPropertyChanged(); } }
+    }
+
     public string GpuName
     {
         get => _gpuName;
@@ -1076,6 +1321,56 @@ public class FanViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(PlatformSummaryText));
         OnPropertyChanged(nameof(BackendStatusText));
 
+        // Update MSI Afterburner Telemetry Series
+        SeriesGpuTemp.AddPoint(reading.GpuTemp);
+        SeriesGpuCoreClock.AddPoint(reading.GpuCoreClockMhz);
+        SeriesGpuMemoryClock.AddPoint(reading.GpuMemoryClockMhz);
+        SeriesGpuCoreLoad.AddPoint(reading.GpuUtilization);
+        SeriesGpuPower.AddPoint(reading.GpuPowerWatts);
+        SeriesGpuVramUsage.AddPoint(reading.GpuVramUsedMb);
+        SeriesGpuFanRpm.AddPoint(reading.GpuRpm);
+        SeriesCpuTemp.AddPoint(reading.CpuTemp);
+        SeriesCpuPackageLoad.AddPoint(reading.CpuLoad);
+        SeriesCpuPackagePower.AddPoint(reading.CpuPowerWatts);
+        double ramPct = reading.RamTotalGb > 0 ? (reading.RamUsedGb / reading.RamTotalGb) * 100.0 : 0.0;
+        SeriesRamUsage.AddPoint(ramPct);
+
+        GpuClocksLiveText = $"{reading.GpuCoreClockMhz} MHz Core | {reading.GpuMemoryClockMhz} MHz Mem | VRAM: {reading.GpuVramUsedMb:F0}/{reading.GpuVramTotalMb:F0} MB";
+
+        // Update RTSS OSD
+        if (OsdEnabled)
+        {
+            var snap = new OsdTelemetrySnapshot
+            {
+                GpuName = reading.GpuName,
+                GpuTemp = reading.GpuTemp,
+                GpuLoad = reading.GpuUtilization,
+                GpuCoreClockMhz = reading.GpuCoreClockMhz,
+                GpuMemoryClockMhz = reading.GpuMemoryClockMhz,
+                GpuPowerWatts = reading.GpuPowerWatts,
+                GpuVramUsedMb = reading.GpuVramUsedMb,
+                GpuVramTotalMb = reading.GpuVramTotalMb,
+                GpuFanRpm = reading.GpuRpm,
+                CpuName = CpuModelName,
+                CpuTemp = reading.CpuTemp,
+                CpuLoad = reading.CpuLoad,
+                CpuPowerWatts = reading.CpuPowerWatts,
+                CpuFanRpm = reading.CpuRpm,
+                RamUsedGb = reading.RamUsedGb,
+                RamTotalGb = reading.RamTotalGb,
+                ActivePreset = ActiveMode
+            };
+            RtssOsdService.Instance.UpdateOsd(_settings.Osd, snap);
+            RtssStatusText = RtssOsdService.Instance.IsRtssRunning
+                ? "🟢 RTSS Connected (In-Game OSD Live)"
+                : "⚪ RTSS Not Running (Launch RTSS to see in-game OSD)";
+            OsdPreviewText = RtssOsdService.Instance.LastOsdPreview;
+        }
+        else
+        {
+            RtssStatusText = "Overlay Disabled";
+        }
+
         // Overheat Protection Watchdog
         if (OverheatProtection && PeakTemp >= OverheatThreshold)
         {
@@ -1123,6 +1418,92 @@ public class FanViewModel : INotifyPropertyChanged
 
         if (CoolBoost)
             FanHardwareManager.Instance.SetCoolBoost(true);
+    }
+
+    public void ApplyGpuTuning()
+    {
+        var profile = new GpuTuningProfile
+        {
+            ProfileName = "Custom Tuning",
+            CoreClockOffsetMhz = CoreClockOffset,
+            MemoryClockOffsetMhz = MemoryClockOffset,
+            PowerLimitPercent = PowerLimitPercent,
+            TempLimitCelsius = TempLimitCelsius,
+            VoltageOffsetMv = VoltageOffsetMv
+        };
+        GpuTuningManager.Instance.ApplyProfile(profile);
+        _settings.CurrentTuningProfile = profile;
+        ConfigManager.Save(_settings);
+        TuningStatusText = GpuTuningManager.Instance.LastStatus;
+    }
+
+    public void ResetGpuTuningStock()
+    {
+        GpuTuningManager.Instance.ResetToStock();
+        CoreClockOffset = 0;
+        MemoryClockOffset = 0;
+        PowerLimitPercent = 100;
+        TempLimitCelsius = 83;
+        VoltageOffsetMv = 0;
+        _settings.CurrentTuningProfile = GpuTuningProfile.Stock;
+        ConfigManager.Save(_settings);
+        TuningStatusText = GpuTuningManager.Instance.LastStatus;
+    }
+
+    public void ApplyTuningPreset(string presetName)
+    {
+        var preset = presetName switch
+        {
+            "Stock" => GpuTuningProfile.Stock,
+            "Undervolt" => GpuTuningProfile.Undervolt,
+            "Balanced" => GpuTuningProfile.Balanced,
+            "MaxOC" => GpuTuningProfile.MaxOverclock,
+            "Eco" => GpuTuningProfile.Eco,
+            _ => GpuTuningProfile.Stock
+        };
+
+        CoreClockOffset = preset.CoreClockOffsetMhz;
+        MemoryClockOffset = preset.MemoryClockOffsetMhz;
+        PowerLimitPercent = preset.PowerLimitPercent;
+        TempLimitCelsius = preset.TempLimitCelsius;
+        VoltageOffsetMv = preset.VoltageOffsetMv;
+
+        GpuTuningManager.Instance.ApplyProfile(preset);
+        _settings.CurrentTuningProfile = preset;
+        ConfigManager.Save(_settings);
+        TuningStatusText = $"Preset Applied: {preset.ProfileName}";
+    }
+
+    public void SaveTuningSlot(int slotIndex)
+    {
+        var profile = new GpuTuningProfile
+        {
+            ProfileName = $"Slot {slotIndex}",
+            CoreClockOffsetMhz = CoreClockOffset,
+            MemoryClockOffsetMhz = MemoryClockOffset,
+            PowerLimitPercent = PowerLimitPercent,
+            TempLimitCelsius = TempLimitCelsius,
+            VoltageOffsetMv = VoltageOffsetMv
+        };
+        GpuTuningManager.Instance.SaveToSlot(slotIndex - 1, profile);
+        ActiveTuningSlot = slotIndex;
+        TuningStatusText = $"Tuning saved to Profile Slot [{slotIndex}]";
+    }
+
+    public void LoadTuningSlot(int slotIndex)
+    {
+        var profile = GpuTuningManager.Instance.GetSlot(slotIndex - 1);
+        CoreClockOffset = profile.CoreClockOffsetMhz;
+        MemoryClockOffset = profile.MemoryClockOffsetMhz;
+        PowerLimitPercent = profile.PowerLimitPercent;
+        TempLimitCelsius = profile.TempLimitCelsius;
+        VoltageOffsetMv = profile.VoltageOffsetMv;
+
+        GpuTuningManager.Instance.ApplyProfile(profile);
+        _settings.CurrentTuningProfile = profile;
+        ConfigManager.Save(_settings);
+        ActiveTuningSlot = slotIndex;
+        TuningStatusText = $"Loaded & Applied Profile Slot [{slotIndex}]";
     }
 
     #endregion

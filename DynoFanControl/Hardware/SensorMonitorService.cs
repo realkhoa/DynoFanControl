@@ -22,6 +22,14 @@ public class MultiSensorSnapshot
     public uint GpuUtilization { get; set; }
     public double GpuPowerWatts { get; set; }
     public bool GpuIsSleeping { get; set; }
+    public uint GpuCoreClockMhz { get; set; }
+    public uint GpuMemoryClockMhz { get; set; }
+    public double GpuVramUsedMb { get; set; }
+    public double GpuVramTotalMb { get; set; }
+    public double CpuLoad { get; set; }
+    public double CpuPowerWatts { get; set; }
+    public double RamUsedGb { get; set; }
+    public double RamTotalGb { get; set; }
     public List<GpuDeviceInfo> DetectedGpus { get; set; } = new();
     public List<SensorItem> AllSensors { get; } = new();
 }
@@ -56,6 +64,7 @@ public sealed class SensorMonitorService : IDisposable
                 {
                     IsCpuEnabled = true,
                     IsGpuEnabled = true,
+                    IsMemoryEnabled = true,
                     IsMotherboardEnabled = true,
                     IsStorageEnabled = true,
                     IsBatteryEnabled = true,
@@ -90,6 +99,10 @@ public sealed class SensorMonitorService : IDisposable
                 snapshot.GpuUtilization = activeGpu.UtilizationGpu;
                 snapshot.GpuPowerWatts = activeGpu.PowerWatts;
                 snapshot.GpuIsSleeping = activeGpu.IsSleeping;
+                snapshot.GpuCoreClockMhz = activeGpu.CoreClockMhz;
+                snapshot.GpuMemoryClockMhz = activeGpu.MemoryClockMhz;
+                snapshot.GpuVramUsedMb = activeGpu.VramUsedMb;
+                snapshot.GpuVramTotalMb = activeGpu.VramTotalMb;
                 if (!activeGpu.IsSleeping && activeGpu.Temperature > 0)
                 {
                     snapshot.GpuTemp = activeGpu.Temperature;
@@ -276,6 +289,29 @@ public sealed class SensorMonitorService : IDisposable
                     Unit = "%",
                     Subtext = hw.Name
                 });
+            }
+            // CPU Total Load
+            else if (hw.HardwareType == HardwareType.Cpu && sensor.SensorType == SensorType.Load && sensor.Name.Contains("Total", StringComparison.OrdinalIgnoreCase))
+            {
+                snapshot.CpuLoad = val;
+            }
+            // CPU Package Power
+            else if (hw.HardwareType == HardwareType.Cpu && sensor.SensorType == SensorType.Power && (sensor.Name.Contains("Package", StringComparison.OrdinalIgnoreCase) || sensor.Name.Contains("Core", StringComparison.OrdinalIgnoreCase)))
+            {
+                snapshot.CpuPowerWatts = val;
+            }
+            // RAM Usage
+            else if (hw.HardwareType == HardwareType.Memory)
+            {
+                if (sensor.SensorType == SensorType.Data && sensor.Name.Contains("Used", StringComparison.OrdinalIgnoreCase))
+                {
+                    snapshot.RamUsedGb = val;
+                }
+                else if (sensor.SensorType == SensorType.Data && sensor.Name.Contains("Available", StringComparison.OrdinalIgnoreCase))
+                {
+                    double used = snapshot.RamUsedGb > 0 ? snapshot.RamUsedGb : 0;
+                    snapshot.RamTotalGb = Math.Round(used + val, 1);
+                }
             }
         }
     }

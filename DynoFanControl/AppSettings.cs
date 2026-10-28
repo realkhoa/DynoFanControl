@@ -1,5 +1,7 @@
 using System.IO;
 using System.Text.Json;
+using DynoFanControl.Hardware.Tuning;
+using DynoFanControl.Services.Osd;
 
 namespace DynoFanControl;
 
@@ -66,6 +68,11 @@ public class AppSettings
         new(78, 90),
         new(85, 100)
     };
+
+    // MSI Afterburner Suite: GPU Tuning & OSD
+    public GpuTuningProfile CurrentTuningProfile { get; set; } = GpuTuningProfile.Stock;
+    public bool ApplyTuningAtStartup { get; set; } = false;
+    public OsdSettings Osd { get; set; } = new();
 }
 
 public static class ConfigManager

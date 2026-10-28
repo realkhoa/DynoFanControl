@@ -183,6 +183,49 @@ public partial class MainWindow : Window
         _vm.IsSettingsOpen = !_vm.IsSettingsOpen;
     }
 
+    private void TuningToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.IsTuningOpen = !_vm.IsTuningOpen;
+    }
+
+    private void MonitorToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.IsMonitorOpen = !_vm.IsMonitorOpen;
+    }
+
+    private void OsdToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.IsOsdOpen = !_vm.IsOsdOpen;
+    }
+
+    private void TuningPreset_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button b && b.Tag is string preset)
+            _vm.ApplyTuningPreset(preset);
+    }
+
+    private void TuningApply_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.ApplyGpuTuning();
+    }
+
+    private void TuningReset_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.ResetGpuTuningStock();
+    }
+
+    private void TuningSlot_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button b && b.Tag is string s && int.TryParse(s, out var slot))
+            _vm.LoadTuningSlot(slot);
+    }
+
+    private void TuningSaveSlot_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button b && b.Tag is string s && int.TryParse(s, out var slot))
+            _vm.SaveTuningSlot(slot);
+    }
+
     private void TrayShow_Click(object sender, RoutedEventArgs e)
     {
         RestoreWindow();

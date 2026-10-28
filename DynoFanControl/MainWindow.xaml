@@ -4,8 +4,8 @@
         xmlns:local="clr-namespace:DynoFanControl"
         xmlns:vm="clr-namespace:DynoFanControl.ViewModels"
         Title="DynoFanControl — Acer Nitro 5"
-        Height="620" Width="540"
-        MinHeight="580" MinWidth="500"
+        Height="630" Width="600"
+        MinHeight="590" MinWidth="540"
         WindowStartupLocation="CenterScreen"
         Background="#121316"
         Foreground="#ECEFF1"
@@ -162,15 +162,27 @@
                     </StackPanel>
 
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button Style="{StaticResource BaseBtn}" Height="30" Padding="10,0" Margin="4,0"
+                        <Button Style="{StaticResource BaseBtn}" Height="30" Padding="8,0" Margin="3,0"
+                                Click="TuningToggle_Click" ToolTip="GPU Clock, Voltage &amp; Power Tuning (Afterburner Suite)">
+                            <TextBlock Text="⚡ OC" FontSize="11" FontWeight="SemiBold" Foreground="#FFD600"/>
+                        </Button>
+                        <Button Style="{StaticResource BaseBtn}" Height="30" Padding="8,0" Margin="3,0"
+                                Click="MonitorToggle_Click" ToolTip="Hardware Monitoring Telemetry &amp; Graphs">
+                            <TextBlock Text="📉 Graphs" FontSize="11" FontWeight="SemiBold"/>
+                        </Button>
+                        <Button Style="{StaticResource BaseBtn}" Height="30" Padding="8,0" Margin="3,0"
+                                Click="OsdToggle_Click" ToolTip="RivaTuner Statistics Server (RTSS) In-Game OSD">
+                            <TextBlock Text="📺 OSD" FontSize="11" FontWeight="SemiBold"/>
+                        </Button>
+                        <Button Style="{StaticResource BaseBtn}" Height="30" Padding="8,0" Margin="3,0"
                                 Click="SensorsToggle_Click" ToolTip="View All Hardware Temperature Sensors">
                             <TextBlock Text="📊 Sensors" FontSize="11" FontWeight="SemiBold"/>
                         </Button>
-                        <Button Style="{StaticResource BaseBtn}" Height="30" Padding="10,0" Margin="4,0"
+                        <Button Style="{StaticResource BaseBtn}" Height="30" Padding="8,0" Margin="3,0"
                                 Click="CurveToggle_Click" ToolTip="Custom Fan Curve Editor">
                             <TextBlock Text="📈 Curves" FontSize="11" FontWeight="SemiBold"/>
                         </Button>
-                        <Button Style="{StaticResource BaseBtn}" Height="30" Width="32" Margin="4,0"
+                        <Button Style="{StaticResource BaseBtn}" Height="30" Width="32" Margin="3,0"
                                 Click="SettingsToggle_Click" ToolTip="Application Settings">
                             <TextBlock Text="⚙" FontSize="14"/>
                         </Button>
@@ -603,6 +615,307 @@
                     <!-- Save / Close -->
                     <Button Grid.Row="2" Style="{StaticResource BaseBtn}" Height="32" Content="Done"
                             HorizontalAlignment="Right" Width="80" Click="SettingsToggle_Click"/>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- GPU Tuning Modal Overlay (MSI Afterburner Overclocking & Undervolting Suite) -->
+        <Grid Background="#B0000000" Visibility="{Binding IsTuningOpen, Converter={StaticResource BoolToVis}}">
+            <Border Background="#1C1E24" CornerRadius="12" Padding="20" Width="520" Height="560"
+                    BorderBrush="#373B47" BorderThickness="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Title -->
+                    <Grid Grid.Row="0" Margin="0,0,0,12">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="⚡ GPU Tuning &amp; Overclocking" FontSize="15" FontWeight="Bold" Foreground="White"/>
+                            <Border Background="#2B2E38" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="AFTERBURNER SUITE" FontSize="9" FontWeight="Bold" Foreground="#FFD600"/>
+                            </Border>
+                        </StackPanel>
+                        <Button Content="✕" HorizontalAlignment="Right" Style="{StaticResource BaseBtn}"
+                                Width="26" Height="26" Padding="0" Click="TuningToggle_Click"/>
+                    </Grid>
+
+                    <!-- Body -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10">
+                        <StackPanel Margin="0,0,6,0">
+                            <!-- GPU Live Status Banner -->
+                            <Border Background="#20232B" CornerRadius="8" Padding="12,8" Margin="0,0,0,12" BorderBrush="#2B2F3A" BorderThickness="1">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding GpuName}" FontSize="12" FontWeight="Bold" Foreground="#ECEFF1"/>
+                                        <TextBlock Text="{Binding GpuClocksLiveText}" FontSize="10" Foreground="#00E5FF" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding GpuTempText}" FontSize="18" FontWeight="Bold"
+                                               Foreground="{Binding GpuTemp, Converter={StaticResource TempBrush}}" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Presets Row -->
+                            <TextBlock Text="TUNING PRESETS" FontSize="10" FontWeight="Bold" Foreground="#78909C" Margin="0,0,0,4"/>
+                            <UniformGrid Columns="5" Margin="0,0,0,12">
+                                <Button Style="{StaticResource BaseBtn}" Content="Stock" Margin="2,0" Height="26" FontSize="10" Click="TuningPreset_Click" Tag="Stock"/>
+                                <Button Style="{StaticResource BaseBtn}" Content="Undervolt" Margin="2,0" Height="26" FontSize="10" Click="TuningPreset_Click" Tag="Undervolt"/>
+                                <Button Style="{StaticResource BaseBtn}" Content="Balanced" Margin="2,0" Height="26" FontSize="10" Click="TuningPreset_Click" Tag="Balanced"/>
+                                <Button Style="{StaticResource BaseBtn}" Content="Max OC" Margin="2,0" Height="26" FontSize="10" Click="TuningPreset_Click" Tag="MaxOC" Foreground="#FFD600"/>
+                                <Button Style="{StaticResource BaseBtn}" Content="Eco" Margin="2,0" Height="26" FontSize="10" Click="TuningPreset_Click" Tag="Eco"/>
+                            </UniformGrid>
+
+                            <!-- Core Clock Offset Slider -->
+                            <Grid Margin="0,4,0,2">
+                                <TextBlock Text="Core Clock Offset (MHz)" FontSize="11" FontWeight="SemiBold" Foreground="#ECEFF1"/>
+                                <TextBlock Text="{Binding CoreClockOffsetText}" FontSize="11" FontWeight="Bold" Foreground="#00E5FF" HorizontalAlignment="Right"/>
+                            </Grid>
+                            <Slider Minimum="-500" Maximum="1000" Value="{Binding CoreClockOffset, Mode=TwoWay}" Margin="0,0,0,8"/>
+
+                            <!-- Memory Clock Offset Slider -->
+                            <Grid Margin="0,4,0,2">
+                                <TextBlock Text="Memory Clock Offset (MHz)" FontSize="11" FontWeight="SemiBold" Foreground="#ECEFF1"/>
+                                <TextBlock Text="{Binding MemoryClockOffsetText}" FontSize="11" FontWeight="Bold" Foreground="#7C4DFF" HorizontalAlignment="Right"/>
+                            </Grid>
+                            <Slider Minimum="-500" Maximum="1500" Value="{Binding MemoryClockOffset, Mode=TwoWay}" Margin="0,0,0,8"/>
+
+                            <!-- Power Limit % Slider -->
+                            <Grid Margin="0,4,0,2">
+                                <TextBlock Text="Power Limit (%)" FontSize="11" FontWeight="SemiBold" Foreground="#ECEFF1"/>
+                                <TextBlock Text="{Binding PowerLimitPercentText}" FontSize="11" FontWeight="Bold" Foreground="#FF9100" HorizontalAlignment="Right"/>
+                            </Grid>
+                            <Slider Minimum="50" Maximum="130" Value="{Binding PowerLimitPercent, Mode=TwoWay}" Margin="0,0,0,8"/>
+
+                            <!-- Temperature Limit °C Slider -->
+                            <Grid Margin="0,4,0,2">
+                                <TextBlock Text="Temperature Limit Target (°C)" FontSize="11" FontWeight="SemiBold" Foreground="#ECEFF1"/>
+                                <TextBlock Text="{Binding TempLimitCelsiusText}" FontSize="11" FontWeight="Bold" Foreground="#FF5252" HorizontalAlignment="Right"/>
+                            </Grid>
+                            <Slider Minimum="65" Maximum="90" Value="{Binding TempLimitCelsius, Mode=TwoWay}" Margin="0,0,0,8"/>
+
+                            <!-- Voltage Offset mV Slider -->
+                            <Grid Margin="0,4,0,2">
+                                <TextBlock Text="Core Voltage Offset (mV)" FontSize="11" FontWeight="SemiBold" Foreground="#ECEFF1"/>
+                                <TextBlock Text="{Binding VoltageOffsetMvText}" FontSize="11" FontWeight="Bold" Foreground="#E040FB" HorizontalAlignment="Right"/>
+                            </Grid>
+                            <Slider Minimum="0" Maximum="100" Value="{Binding VoltageOffsetMv, Mode=TwoWay}" Margin="0,0,0,12"/>
+
+                            <Separator Background="#2A2D37" Margin="0,0,0,10"/>
+
+                            <!-- User Profile Slots 1-5 -->
+                            <Grid Margin="0,0,0,6">
+                                <TextBlock Text="PROFILE SLOTS" FontSize="10" FontWeight="Bold" Foreground="#78909C"/>
+                                <TextBlock Text="Load: Click slot | Save: Click 💾 [N]" FontSize="9" Foreground="#546E7A" HorizontalAlignment="Right"/>
+                            </Grid>
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Button Grid.Column="0" Style="{StaticResource BaseBtn}" Content="Slot 1" Margin="2,0" Height="26" FontSize="10" Click="TuningSlot_Click" Tag="1"/>
+                                <Button Grid.Column="1" Style="{StaticResource BaseBtn}" Content="Slot 2" Margin="2,0" Height="26" FontSize="10" Click="TuningSlot_Click" Tag="2"/>
+                                <Button Grid.Column="2" Style="{StaticResource BaseBtn}" Content="Slot 3" Margin="2,0" Height="26" FontSize="10" Click="TuningSlot_Click" Tag="3"/>
+                                <Button Grid.Column="3" Style="{StaticResource BaseBtn}" Content="Slot 4" Margin="2,0" Height="26" FontSize="10" Click="TuningSlot_Click" Tag="4"/>
+                                <Button Grid.Column="4" Style="{StaticResource BaseBtn}" Content="Slot 5" Margin="2,0" Height="26" FontSize="10" Click="TuningSlot_Click" Tag="5"/>
+                            </Grid>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <TextBlock Text="Save to Slot:" FontSize="10" Foreground="#90A4AE" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <Button Style="{StaticResource ChipBtn}" Content="💾 [1]" Click="TuningSaveSlot_Click" Tag="1"/>
+                                <Button Style="{StaticResource ChipBtn}" Content="💾 [2]" Click="TuningSaveSlot_Click" Tag="2"/>
+                                <Button Style="{StaticResource ChipBtn}" Content="💾 [3]" Click="TuningSaveSlot_Click" Tag="3"/>
+                                <Button Style="{StaticResource ChipBtn}" Content="💾 [4]" Click="TuningSaveSlot_Click" Tag="4"/>
+                                <Button Style="{StaticResource ChipBtn}" Content="💾 [5]" Click="TuningSaveSlot_Click" Tag="5"/>
+                            </StackPanel>
+
+                            <!-- Apply at Startup Checkbox -->
+                            <CheckBox Content="Apply GPU Tuning Profile at Windows Startup"
+                                      IsChecked="{Binding ApplyTuningAtStartup, Mode=TwoWay}"
+                                      Foreground="#ECEFF1" Margin="0,0,0,8"/>
+
+                            <!-- Tuning Status Feedback Text -->
+                            <TextBlock Text="{Binding TuningStatusText}" FontSize="10" Foreground="#00E676" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- Footer Buttons -->
+                    <Grid Grid.Row="2">
+                        <Button Style="{StaticResource BaseBtn}" Height="30" Content="Reset Stock"
+                                HorizontalAlignment="Left" Width="95" Click="TuningReset_Click"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Style="{StaticResource BaseBtn}" Height="30" Content="Apply"
+                                    Width="85" Margin="0,0,8,0" Background="#1A3B2F" BorderBrush="#00E676" Foreground="#00E676" FontWeight="Bold"
+                                    Click="TuningApply_Click"/>
+                            <Button Style="{StaticResource BaseBtn}" Height="30" Content="Done"
+                                    Width="75" Click="TuningToggle_Click"/>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Hardware Monitor & Graphs Modal Overlay (MSI Afterburner Hardware Monitor) -->
+        <Grid Background="#B0000000" Visibility="{Binding IsMonitorOpen, Converter={StaticResource BoolToVis}}">
+            <Border Background="#1A1C22" CornerRadius="12" Padding="18" Width="550" Height="580"
+                    BorderBrush="#373B47" BorderThickness="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Header -->
+                    <Grid Grid.Row="0" Margin="0,0,0,10">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="📉 Hardware Telemetry Graphs" FontSize="15" FontWeight="Bold" Foreground="White"/>
+                            <Border Background="#2B2E38" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="60s ROLLING HISTORY" FontSize="9" FontWeight="Bold" Foreground="#00E5FF"/>
+                            </Border>
+                        </StackPanel>
+                        <Button Content="✕" HorizontalAlignment="Right" Style="{StaticResource BaseBtn}"
+                                Width="26" Height="26" Padding="0" Click="MonitorToggle_Click"/>
+                    </Grid>
+
+                    <!-- Telemetry Graphs List -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,8">
+                        <ItemsControl ItemsSource="{Binding TelemetrySeriesList}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#15171D" CornerRadius="8" Padding="10,8" Margin="0,0,6,8"
+                                            BorderBrush="#252731" BorderThickness="1">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="60"/>
+                                            </Grid.RowDefinitions>
+
+                                            <!-- Metric Header -->
+                                            <Grid Grid.Row="0" Margin="0,0,0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <TextBlock Text="{Binding Title}" FontSize="11" FontWeight="Bold" Foreground="{Binding ColorHex}"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding FormattedMin}" FontSize="9" Foreground="#607D8B" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding FormattedMax}" FontSize="9" Foreground="#607D8B" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="3" Text="{Binding FormattedValue}" FontSize="12" FontWeight="Bold" Foreground="{Binding ColorHex}" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                            </Grid>
+
+                                            <!-- Sparkline Canvas -->
+                                            <Border Grid.Row="1" Background="#0F1014" CornerRadius="4" BorderBrush="#1F2128" BorderThickness="1" ClipToBounds="True">
+                                                <Grid>
+                                                    <Polygon Points="{Binding PolygonPoints}" Fill="{Binding ColorHex}" Opacity="0.15"/>
+                                                    <Polyline Points="{Binding PolylinePoints}" Stroke="{Binding ColorHex}" StrokeThickness="1.5"/>
+                                                </Grid>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <!-- Footer -->
+                    <Grid Grid.Row="2">
+                        <TextBlock Text="Updated continuously every poll tick • Hardware acceleration" FontSize="10" Foreground="#546E7A" VerticalAlignment="Center"/>
+                        <Button Style="{StaticResource BaseBtn}" Height="30" Content="Close"
+                                HorizontalAlignment="Right" Width="80" Click="MonitorToggle_Click"/>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- RivaTuner Statistics Server (RTSS) OSD Modal Overlay -->
+        <Grid Background="#B0000000" Visibility="{Binding IsOsdOpen, Converter={StaticResource BoolToVis}}">
+            <Border Background="#1C1E24" CornerRadius="12" Padding="20" Width="510" Height="530"
+                    BorderBrush="#373B47" BorderThickness="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Header -->
+                    <Grid Grid.Row="0" Margin="0,0,0,12">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="📺 RivaTuner (RTSS) In-Game OSD" FontSize="15" FontWeight="Bold" Foreground="White"/>
+                            <Border Background="#2B2E38" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="DIRECTX / VULKAN" FontSize="9" FontWeight="Bold" Foreground="#00E5FF"/>
+                            </Border>
+                        </StackPanel>
+                        <Button Content="✕" HorizontalAlignment="Right" Style="{StaticResource BaseBtn}"
+                                Width="26" Height="26" Padding="0" Click="OsdToggle_Click"/>
+                    </Grid>
+
+                    <!-- Body -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10">
+                        <StackPanel Margin="0,0,6,0">
+                            <!-- Master Toggle -->
+                            <CheckBox Content="Enable In-Game On-Screen Display (OSD)"
+                                      IsChecked="{Binding OsdEnabled, Mode=TwoWay}"
+                                      FontSize="12" FontWeight="Bold" Foreground="#00E5FF" Margin="0,0,0,8"/>
+
+                            <!-- RTSS Status Badge -->
+                            <Border Background="#20232B" CornerRadius="6" Padding="10,6" Margin="0,0,0,12" BorderBrush="#2B2F3A" BorderThickness="1">
+                                <TextBlock Text="{Binding RtssStatusText}" FontSize="11" Foreground="#ECEFF1"/>
+                            </Border>
+
+                            <TextBlock Text="SELECT METRICS TO DISPLAY IN-GAME:" FontSize="10" FontWeight="Bold" Foreground="#78909C" Margin="0,0,0,6"/>
+
+                            <!-- Metric Checkboxes Grid -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0">
+                                    <CheckBox Content="GPU Temperature" IsChecked="{Binding OsdShowGpuTemp, Mode=TwoWay}" Foreground="#ECEFF1" Margin="0,3"/>
+                                    <CheckBox Content="GPU Core Load (%)" IsChecked="{Binding OsdShowGpuLoad, Mode=TwoWay}" Foreground="#ECEFF1" Margin="0,3"/>
+                                    <CheckBox Content="GPU Core &amp; Mem Clocks" IsChecked="{Binding OsdShowGpuClocks, Mode=TwoWay}" Foreground="#ECEFF1" Margin="0,3"/>
+                                    <CheckBox Content="GPU Power Draw (W)" IsChecked="{Binding OsdShowGpuPower, Mode=TwoWay}" Foreground="#ECEFF1" Margin="0,3"/>
+                                    <CheckBox Content="GPU VRAM Usage (MB)" IsChecked="{Binding OsdShowGpuVram, Mode=TwoWay}" Foreground="#ECEFF1" Margin="0,3"/>
+                                    <CheckBox Content="GPU Fan Speed (RPM)" IsChecked="{Binding OsdShowGpuFanRpm, Mode=TwoWay}" Foreground="#ECEFF1" Margin="0,3"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1">
+                                    <CheckBox Content="CPU Temperature" IsChecked="{Binding OsdShowCpuTemp, Mode=TwoWay}" Foreground="#ECEFF1" Margin="0,3"/>
+                                    <CheckBox Content="CPU Package Load (%)" IsChecked="{Binding OsdShowCpuLoad, Mode=TwoWay}" Foreground="#ECEFF1" Margin="0,3"/>
+                                    <CheckBox Content="CPU Package Power (W)" IsChecked="{Binding OsdShowCpuPower, Mode=TwoWay}" Foreground="#ECEFF1" Margin="0,3"/>
+                                    <CheckBox Content="CPU Fan Speed (RPM)" IsChecked="{Binding OsdShowCpuFanRpm, Mode=TwoWay}" Foreground="#ECEFF1" Margin="0,3"/>
+                                    <CheckBox Content="System RAM Usage" IsChecked="{Binding OsdShowRamUsage, Mode=TwoWay}" Foreground="#ECEFF1" Margin="0,3"/>
+                                    <CheckBox Content="Active Fan Profile Badge" IsChecked="{Binding OsdShowActivePreset, Mode=TwoWay}" Foreground="#ECEFF1" Margin="0,3"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <Separator Background="#2A2D37" Margin="0,0,0,10"/>
+
+                            <!-- OSD Live Text Preview Box -->
+                            <TextBlock Text="IN-GAME OVERLAY PREVIEW:" FontSize="10" FontWeight="Bold" Foreground="#78909C" Margin="0,0,0,6"/>
+                            <Border Background="#0A0B0E" CornerRadius="6" Padding="12,10" BorderBrush="#1F2128" BorderThickness="1">
+                                <TextBlock Text="{Binding OsdPreviewText}" FontFamily="Consolas, Lucida Console, monospace"
+                                           FontSize="12" Foreground="#00E5FF" TextWrapping="Wrap"/>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- Footer -->
+                    <Button Grid.Row="2" Style="{StaticResource BaseBtn}" Height="32" Content="Done"
+                            HorizontalAlignment="Right" Width="80" Click="OsdToggle_Click"/>
                 </Grid>
             </Border>
         </Grid>

@@ -143,8 +143,26 @@ public sealed class GpuManager : IDisposable
                     nvGpu.Name = nv.Name;
                     nvGpu.Temperature = nv.IsSleeping ? 0 : nv.Temperature;
                     nvGpu.UtilizationGpu = nv.UtilizationGpu;
+                    nvGpu.UtilizationMemory = nv.UtilizationMemory;
                     nvGpu.PowerWatts = nv.PowerWatts;
                     nvGpu.IsSleeping = nv.IsSleeping;
+                    nvGpu.CoreClockMhz = nv.CoreClockMhz;
+                    nvGpu.MemoryClockMhz = nv.MemoryClockMhz;
+                    nvGpu.VramUsedMb = nv.VramUsedMb;
+                    nvGpu.VramTotalMb = nv.VramTotalMb;
+
+                    if (nvGpu.CoreClockMhz == 0 && NvapiDriver.IsAvailable)
+                    {
+                        var (c, m, _) = NvapiDriver.GetClockFrequencies();
+                        if (c > 0) nvGpu.CoreClockMhz = c;
+                        if (m > 0) nvGpu.MemoryClockMhz = m;
+                        var (t, _, u) = NvapiDriver.GetMemoryInfo();
+                        if (t > 0)
+                        {
+                            nvGpu.VramTotalMb = t;
+                            nvGpu.VramUsedMb = u;
+                        }
+                    }
                 }
             }
             catch { }

@@ -17,6 +17,14 @@ public class HardwareReading
     public uint GpuUtilization { get; set; }
     public double GpuPowerWatts { get; set; }
     public bool GpuIsSleeping { get; set; }
+    public uint GpuCoreClockMhz { get; set; }
+    public uint GpuMemoryClockMhz { get; set; }
+    public double GpuVramUsedMb { get; set; }
+    public double GpuVramTotalMb { get; set; }
+    public double CpuLoad { get; set; }
+    public double CpuPowerWatts { get; set; }
+    public double RamUsedGb { get; set; }
+    public double RamTotalGb { get; set; }
     public List<GpuDeviceInfo> DetectedGpus { get; set; } = new();
     public List<SensorItem> AllSensors { get; set; } = new();
 }
@@ -86,6 +94,14 @@ public sealed class FanHardwareManager : IDisposable
             reading.GpuUtilization = snapshot.GpuUtilization;
             reading.GpuPowerWatts = snapshot.GpuPowerWatts;
             reading.GpuIsSleeping = snapshot.GpuIsSleeping;
+            reading.GpuCoreClockMhz = snapshot.GpuCoreClockMhz;
+            reading.GpuMemoryClockMhz = snapshot.GpuMemoryClockMhz;
+            reading.GpuVramUsedMb = snapshot.GpuVramUsedMb;
+            reading.GpuVramTotalMb = snapshot.GpuVramTotalMb;
+            reading.CpuLoad = snapshot.CpuLoad;
+            reading.CpuPowerWatts = snapshot.CpuPowerWatts;
+            reading.RamUsedGb = snapshot.RamUsedGb;
+            reading.RamTotalGb = snapshot.RamTotalGb;
             reading.DetectedGpus = snapshot.DetectedGpus;
             reading.AllSensors = snapshot.AllSensors;
         }
