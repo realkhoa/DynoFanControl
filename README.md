@@ -40,9 +40,10 @@ DynoFanControl solves this with a **zero-dependency, universal hardware abstract
   - **Desktop PCs & Custom Builds**: Motherboard LPC Super I/O bus control (Nuvoton NCT67xx, ITE IT86xx/IT87xx, Fintek, Winbond) and discrete GPU fan driver.
   - **Acer Gaming (Nitro & Predator)**: Sub-millisecond direct ACPI Embedded Controller (EC) I/O via WinRing0 kernel driver and `root\wmi: AcerGamingFunction`.
   - **ASUS ROG & TUF Gaming**: Direct ACPI WMI driver (`root\wmi: ASUS_WMI`) with discrete Silent, Performance, and Turbo modes.
-  - **Lenovo Legion, LOQ & ThinkPad**: Thermal WMI driver (`LENOVO_GAMEZONE_DATA`) with Quiet, Balanced, and Extreme Performance presets.
+  - **Lenovo Legion, LOQ & IdeaPad Gaming**: Dual-engine thermal driver combining direct ACPI Embedded Controller (EC) I/O (`WinRing0` registers `0xBD`, `0x01`, `0x8A`, `0xF4`, and dual-byte tachometers `0xFE`/`0xFF` & `0xEC`/`0xED`) with Lenovo GameZone ACPI WMI dispatch (`SetSmartFanMode` & `SetThermalMode`).
   - **MSI Gaming (Dragon Center / MSI Center)**: Direct EC register manipulation for Katana, Raider, Stealth, Pulse, Vector, and Titan with Cooler Boost.
   - **Dell Alienware & G-Series**: Alienware Command Center WMI interface (`AWCC_WmiMethod`).
+- **Dynamic Platform & Model Detection**: App window title and system tray automatically detect and render the exact host machine model (e.g. `DynoFanControl — Lenovo Legion 5 15ACH6` or `DynoFanControl — Acer Nitro AN515-45`) rather than hardcoded vendor strings.
 - **Independent Smart Fan Curves**: Dual independent temperature curve controllers for CPU and GPU with downward hysteresis to eliminate fan oscillation.
 - **🎮 Per-Game & Per-App Automation Profiles**: Automatic foreground process detection via Win32 `GetForegroundWindow` seamlessly activating customized fan modes (e.g. `Turbo` or `Gaming Curve`) and RTSS OSD for games like Counter-Strike 2, Cyberpunk 2077, Dota 2, and Valorant, then quietly returning to `Silent` or `Balanced` upon switching back to desktop or productivity apps.
 - **❄ CPU Thermal Cap & Power Limiting (Ryzen & Intel)**: Direct AMD Ryzen SMU and Intel MSR power management preventing CPUs from aggressively overshooting into 92°C-95°C thermal throttling territory, lowering temperatures by 10°C-15°C with zero noticeable FPS loss.
@@ -170,6 +171,13 @@ DynoFanControl implements a decoupled, 4-tier modular architecture:
 ### Desktop Super I/O LPC Bus Support
 - Desktop motherboards do not expose standard ACPI EC registers. Instead, fan headers are wired to LPC Super I/O chips (Nuvoton NCT6779D/6791D/6796D/6798D or ITE IT8620E/IT8686E/IT8728F).
 - `SuperIoFanDriver` binds to LibreHardwareMonitor's `SensorType.Control` (`IControl.SetSoftware()`), providing native fan control for desktop chassis fans and CPU AIO coolers.
+
+### Lenovo Legion / LOQ Dual-Engine EC & WMI Integration
+- Modern Lenovo Legion firmware does not expose legacy `LENOVO_GAMEZONE_DATA` uniformly across all BIOS updates.
+- DynoFanControl implements a resilient dual-engine architecture:
+  1. **Direct ACPI EC I/O** via `WinRing0x64.sys` writing to registers `0xBD` (fan mode / turbo override), `0x01` (Fn+Q mode toggle), and `0x8A` (power mode byte).
+  2. **Multi-pair Tachometer Scanning**: Probes dual-byte fan tachometer offsets (`0xFE`/`0xFF`, `0x84`/`0x85`, `0x94`/`0x95`, `0x13`/`0x14`) for CPU and GPU fans, latching onto the verified pair for sub-millisecond polling.
+  3. **WMI Method Dispatch**: Invokes `SetSmartFanMode` on `LENOVO_GAMEZONE_DATA` or `SetThermalMode` on `LENOVO_THERMAL_METHOD` / `LENOVO_OTHER_METHOD` / `LENOVO_BIOM_METHOD` for firmware synchronization.
 
 ### Hybrid Graphics & Sleep States
 - When a laptop discrete GPU enters deep runtime power management (RTD3 / Sleep state), `nvmlDeviceGetTemperature` may return `NVML_ERROR_GPU_IS_LOST` or `0°C`.

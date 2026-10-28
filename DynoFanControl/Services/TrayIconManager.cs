@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
+using DynoFanControl.Hardware.Drivers;
 
 namespace DynoFanControl.Services;
 
@@ -96,6 +97,12 @@ public sealed class TrayIconManager : IDisposable
                 _hIcon = LoadIcon(IntPtr.Zero, (IntPtr)32512); // IDI_APPLICATION
             }
 
+            var p = PlatformDetector.GetProfile();
+            string defaultTip = (!string.IsNullOrWhiteSpace(p.Model) && p.Model != "Unknown")
+                ? $"DynoFanControl — {p.Manufacturer} {p.Model}"
+                : "DynoFanControl — Universal Fan Control";
+            if (defaultTip.Length > 127) defaultTip = defaultTip.Substring(0, 127);
+
             var nid = new NOTIFYICONDATA
             {
                 cbSize = (uint)Marshal.SizeOf<NOTIFYICONDATA>(),
@@ -104,7 +111,7 @@ public sealed class TrayIconManager : IDisposable
                 uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP,
                 uCallbackMessage = WM_TRAYICON,
                 hIcon = _hIcon,
-                szTip = "DynoFanControl — Acer Nitro 5"
+                szTip = defaultTip
             };
 
             _isAdded = Shell_NotifyIcon(NIM_ADD, ref nid);

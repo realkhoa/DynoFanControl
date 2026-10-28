@@ -96,7 +96,18 @@ public sealed class UniversalDriverCoordinator : IDisposable
                 }
             }
 
-            _activeDriver = selected ?? acerEc; // Fallback to default Acer EC
+            // Fallback to vendor-appropriate driver instead of hardcoded Acer EC
+            IFanControlDriver fallbackDriver = profile.PlatformType switch
+            {
+                HardwarePlatformType.LaptopLenovo => lenovoEc,
+                HardwarePlatformType.LaptopMsi => msiEc,
+                HardwarePlatformType.LaptopAsus => asusWmi,
+                HardwarePlatformType.LaptopDellAlienware => dellWmi,
+                HardwarePlatformType.DesktopPc => _desktopGpuDriver ?? _superIoDriver ?? (IFanControlDriver)acerEc,
+                _ => acerEc
+            };
+
+            _activeDriver = selected ?? fallbackDriver;
         }
     }
 

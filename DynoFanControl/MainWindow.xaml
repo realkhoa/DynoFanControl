@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:DynoFanControl"
         xmlns:vm="clr-namespace:DynoFanControl.ViewModels"
-        Title="DynoFanControl — Acer Nitro 5"
+        Title="{Binding WindowTitle, Mode=OneWay}"
         Height="650" Width="660"
         MinHeight="600" MinWidth="580"
         WindowStartupLocation="CenterScreen"

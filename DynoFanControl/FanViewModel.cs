@@ -181,6 +181,31 @@ public class FanViewModel : INotifyPropertyChanged
     }
 
     public string PlatformSummaryText => FanHardwareManager.Instance.PlatformSummary;
+
+    public string WindowTitle
+    {
+        get
+        {
+            var p = PlatformDetector.GetProfile();
+            string name = "";
+            if (!string.IsNullOrWhiteSpace(p.Model) && p.Model != "Unknown")
+            {
+                var mfg = (!string.IsNullOrWhiteSpace(p.Manufacturer) && p.Manufacturer != "Unknown" && !p.Model.Contains(p.Manufacturer, StringComparison.OrdinalIgnoreCase))
+                    ? $"{p.Manufacturer} "
+                    : "";
+                name = $"{mfg}{p.Model}";
+            }
+            else if (!string.IsNullOrWhiteSpace(p.MotherboardModel) && p.MotherboardModel != "Unknown")
+            {
+                name = p.MotherboardModel;
+            }
+
+            return !string.IsNullOrEmpty(name)
+                ? $"DynoFanControl — {name}"
+                : "DynoFanControl — Universal Fan Control";
+        }
+    }
+
     public string CpuModelName
     {
         get

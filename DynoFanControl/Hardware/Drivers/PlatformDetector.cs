@@ -126,7 +126,12 @@ public static class PlatformDetector
         if (mfg.Contains("asus") || mfg.Contains("asustek"))
             return p.IsLaptop ? HardwarePlatformType.LaptopAsus : HardwarePlatformType.DesktopPc;
 
-        if (mfg.Contains("lenovo"))
+        if (mfg.Contains("lenovo") ||
+            model.Contains("legion") ||
+            model.Contains("loq") ||
+            model.Contains("ideapad") ||
+            model.Contains("thinkpad") ||
+            model.Contains("thinkbook"))
             return HardwarePlatformType.LaptopLenovo;
 
         if (mfg.Contains("msi") || mfg.Contains("micro-star"))

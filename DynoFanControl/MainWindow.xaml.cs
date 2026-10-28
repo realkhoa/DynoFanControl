@@ -28,6 +28,7 @@ public partial class MainWindow : Window
         }
         _vm = new FanViewModel();
         DataContext = _vm;
+        Title = _vm.WindowTitle;
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
