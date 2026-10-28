@@ -1,0 +1,91 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag (e.g. v1.0.0)'
+        required: false
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 9.0 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Restore Dependencies
+        run: dotnet restore DynoFanControl.sln
+
+      - name: Build Release (x64)
+        run: msbuild DynoFanControl.sln /p:Configuration=Release /p:Platform=x64 /m /v:m
+
+      - name: Publish Binaries
+        shell: pwsh
+        run: |
+          dotnet publish DynoFanControl/DynoFanControl.csproj -c Release -r win-x64 --self-contained false -o publish
+          if (Test-Path publish/DynoFanControl.exe) {
+            Copy-Item publish/DynoFanControl.exe publish/FanCtl.exe -Force
+          }
+
+      - name: Package Release ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive -Path publish/* -DestinationPath DynoFanControl-win-x64.zip -Force
+
+      - name: Determine Release Tag
+        id: get_tag
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -like "refs/tags/*") {
+            $tag = $env:GITHUB_REF.Substring(10)
+          } elseif ($env:INPUT_TAG_NAME) {
+            $tag = $env:INPUT_TAG_NAME
+          } else {
+            $tag = "v1.0.0"
+          }
+          echo "tag=$tag" >> $env:GITHUB_OUTPUT
+        env:
+          INPUT_TAG_NAME: ${{ inputs.tag_name }}
+
+      - name: Create GitHub Release & Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.get_tag.outputs.tag }}
+          name: DynoFanControl ${{ steps.get_tag.outputs.tag }}
+          body: |
+            ## DynoFanControl Universal Release
+            Universal Fan Control & Thermal Telemetry Suite for PCs & Laptops.
+
+            ### Supported Platforms & GPUs:
+            - **All GPUs**: NVIDIA GeForce/RTX/Quadro, AMD Radeon RX/APU, Intel Arc/Iris Xe.
+            - **Desktops**: Motherboard LPC Super I/O (Nuvoton NCT67xx, ITE IT86xx/IT87xx, Fintek, Winbond).
+            - **Gaming Laptops**: Acer Nitro/Predator, ASUS ROG/TUF, Lenovo Legion/LOQ, MSI Gaming, Dell Alienware/G-Series, HP OMEN/Victus.
+            - **Smart Features**: Dual independent CPU/GPU curves, global preset persistence, elevated silent auto-start with Windows.
+
+            ### Included in Download:
+            - `DynoFanControl-win-x64.zip` (Portable complete package with drivers)
+            - `DynoFanControl.exe` (Main standalone executable)
+          files: |
+            DynoFanControl-win-x64.zip
+            publish/DynoFanControl.exe
+          draft: false
+          prerelease: false

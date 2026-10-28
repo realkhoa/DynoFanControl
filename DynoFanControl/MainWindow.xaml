@@ -108,11 +108,11 @@
         <ContextMenu x:Key="TrayMenu">
             <MenuItem Header="Show DynoFanControl" FontWeight="Bold" Click="TrayShow_Click"/>
             <Separator/>
-            <MenuItem Header="● Auto Mode (BIOS)" Click="TrayMode_Click" Tag="Auto" IsChecked="{Binding IsAutoActive}" IsCheckable="True"/>
-            <MenuItem Header="● Silent Mode (30%)" Click="TrayMode_Click" Tag="Silent" IsChecked="{Binding IsSilentActive}" IsCheckable="True"/>
-            <MenuItem Header="● Balanced Mode (60%)" Click="TrayMode_Click" Tag="Balanced" IsChecked="{Binding IsBalancedActive}" IsCheckable="True"/>
-            <MenuItem Header="● Smart Curve" Click="TrayMode_Click" Tag="Curve" IsChecked="{Binding IsCurveActive}" IsCheckable="True"/>
-            <MenuItem Header="🔥 Max Turbo (100%)" Click="TrayMode_Click" Tag="Turbo" IsChecked="{Binding IsTurboActive}" IsCheckable="True"/>
+            <MenuItem Header="● Auto Mode (BIOS)" Click="TrayMode_Click" Tag="Auto" IsChecked="{Binding IsAutoActive, Mode=OneWay}" IsCheckable="True"/>
+            <MenuItem Header="● Silent Mode (30%)" Click="TrayMode_Click" Tag="Silent" IsChecked="{Binding IsSilentActive, Mode=OneWay}" IsCheckable="True"/>
+            <MenuItem Header="● Balanced Mode (60%)" Click="TrayMode_Click" Tag="Balanced" IsChecked="{Binding IsBalancedActive, Mode=OneWay}" IsCheckable="True"/>
+            <MenuItem Header="● Smart Curve" Click="TrayMode_Click" Tag="Curve" IsChecked="{Binding IsCurveActive, Mode=OneWay}" IsCheckable="True"/>
+            <MenuItem Header="🔥 Max Turbo (100%)" Click="TrayMode_Click" Tag="Turbo" IsChecked="{Binding IsTurboActive, Mode=OneWay}" IsCheckable="True"/>
             <Separator/>
             <MenuItem Header="❄ CoolBoost" IsCheckable="True" IsChecked="{Binding CoolBoost, Mode=TwoWay}"/>
             <Separator/>

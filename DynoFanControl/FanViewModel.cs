@@ -408,12 +408,45 @@ public class FanViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(ActivePresetBadgeText));
     }
 
-    public bool IsAutoActive => ActiveMode == "Auto";
-    public bool IsSilentActive => ActiveMode == "Silent";
-    public bool IsBalancedActive => ActiveMode == "Balanced";
-    public bool IsCurveActive => ActiveMode == "Curve";
-    public bool IsCustomActive => ActiveMode == "Custom";
-    public bool IsTurboActive => TurboActive || ActiveMode == "Turbo";
+    public bool IsAutoActive
+    {
+        get => ActiveMode == "Auto";
+        set { if (value) SetMode("Auto"); }
+    }
+
+    public bool IsSilentActive
+    {
+        get => ActiveMode == "Silent";
+        set { if (value) SetMode("Silent"); }
+    }
+
+    public bool IsBalancedActive
+    {
+        get => ActiveMode == "Balanced";
+        set { if (value) SetMode("Balanced"); }
+    }
+
+    public bool IsCurveActive
+    {
+        get => ActiveMode == "Curve";
+        set { if (value) SetMode("Curve"); }
+    }
+
+    public bool IsCustomActive
+    {
+        get => ActiveMode == "Custom";
+        set { if (value) SetMode("Custom"); }
+    }
+
+    public bool IsTurboActive
+    {
+        get => TurboActive || ActiveMode == "Turbo";
+        set
+        {
+            if (value) SetMode("Turbo");
+            else if (ActiveMode == "Turbo") ToggleTurbo();
+        }
+    }
 
     public Brush AutoBtnBackground => IsAutoActive ? ModeActiveBg : ModeInactiveBg;
     public Brush AutoBtnBorder => IsAutoActive ? ModeActiveBorder : ModeInactiveBorder;
