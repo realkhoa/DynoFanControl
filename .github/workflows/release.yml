@@ -73,13 +73,18 @@ jobs:
           name: DynoFanControl ${{ steps.get_tag.outputs.tag }}
           body: |
             ## DynoFanControl Universal Release
-            Universal Fan Control & Thermal Telemetry Suite for PCs & Laptops.
+            Universal Fan Control, GPU Tuning & Telemetry Suite for Windows PCs & Gaming Laptops.
 
-            ### Supported Platforms & GPUs:
-            - **All GPUs**: NVIDIA GeForce/RTX/Quadro, AMD Radeon RX/APU, Intel Arc/Iris Xe.
-            - **Desktops**: Motherboard LPC Super I/O (Nuvoton NCT67xx, ITE IT86xx/IT87xx, Fintek, Winbond).
-            - **Gaming Laptops**: Acer Nitro/Predator, ASUS ROG/TUF, Lenovo Legion/LOQ, MSI Gaming, Dell Alienware/G-Series, HP OMEN/Victus.
-            - **Smart Features**: Dual independent CPU/GPU curves, global preset persistence, elevated silent auto-start with Windows.
+            ### What's New & Included:
+            - **⚡ MSI Afterburner GPU Overclocking Engine**: Real-time Core Clock, Memory Clock, Power Limit, Temp Limit, and Core Voltage tuning via NVIDIA NVAPI P-States 2.0 & NVML.
+            - **📉 Real-Time Rolling Telemetry Graphs**: 11 rolling telemetry series tracking 60-second histories with live Min, Current, and Max indicators.
+            - **📺 RivaTuner (RTSS) In-Game OSD**: Direct memory-mapped overlay client rendering real-time telemetry in DirectX, Vulkan, and OpenGL titles.
+            - **🎮 Per-Game & App Automation Profiles**: Automatic foreground window detection activating custom curves and modes when games launch.
+            - **❄ CPU Thermal Clamping**: AMD Ryzen SMU & Intel MSR power throttling prevention.
+            - **🔋 Battery-Aware Smart Switching**: Seamless AC vs. battery mode transitions.
+            - **🔊 Fan Acoustics & Health Calibration**: Automated duty cycle sweep benchmarking RPM curves and fan bearing responsiveness.
+            - **💻 Multi-Platform Support**: Acer Nitro/Predator, ASUS ROG/TUF, Lenovo Legion/LOQ/IdeaPad, MSI Gaming, Dell Alienware, and Desktop LPC Super I/O motherboards.
+            - **Dynamic Model Title**: Auto-detects exact hardware model (e.g. `Lenovo Legion 5 15ACH6`, `Acer Nitro 5`).
 
             ### Included in Download:
             - `DynoFanControl-win-x64.zip` (Portable complete package with drivers)
