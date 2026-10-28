@@ -108,11 +108,11 @@
         <ContextMenu x:Key="TrayMenu">
             <MenuItem Header="Show DynoFanControl" FontWeight="Bold" Click="TrayShow_Click"/>
             <Separator/>
-            <MenuItem Header="● Auto Mode (BIOS)" Click="TrayMode_Click" Tag="Auto"/>
-            <MenuItem Header="● Silent Mode (30%)" Click="TrayMode_Click" Tag="Silent"/>
-            <MenuItem Header="● Balanced Mode (60%)" Click="TrayMode_Click" Tag="Balanced"/>
-            <MenuItem Header="● Smart Curve" Click="TrayMode_Click" Tag="Curve"/>
-            <MenuItem Header="🔥 Max Turbo (100%)" Click="TrayMode_Click" Tag="Turbo"/>
+            <MenuItem Header="● Auto Mode (BIOS)" Click="TrayMode_Click" Tag="Auto" IsChecked="{Binding IsAutoActive}" IsCheckable="True"/>
+            <MenuItem Header="● Silent Mode (30%)" Click="TrayMode_Click" Tag="Silent" IsChecked="{Binding IsSilentActive}" IsCheckable="True"/>
+            <MenuItem Header="● Balanced Mode (60%)" Click="TrayMode_Click" Tag="Balanced" IsChecked="{Binding IsBalancedActive}" IsCheckable="True"/>
+            <MenuItem Header="● Smart Curve" Click="TrayMode_Click" Tag="Curve" IsChecked="{Binding IsCurveActive}" IsCheckable="True"/>
+            <MenuItem Header="🔥 Max Turbo (100%)" Click="TrayMode_Click" Tag="Turbo" IsChecked="{Binding IsTurboActive}" IsCheckable="True"/>
             <Separator/>
             <MenuItem Header="❄ CoolBoost" IsCheckable="True" IsChecked="{Binding CoolBoost, Mode=TwoWay}"/>
             <Separator/>
@@ -152,6 +152,9 @@
                                 <TextBlock Text="DynoFanControl" FontSize="16" FontWeight="Bold" Foreground="White"/>
                                 <Border Background="#2B2E38" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center">
                                     <TextBlock Text="UNIVERSAL" FontSize="9" FontWeight="Bold" Foreground="#00E5FF"/>
+                                </Border>
+                                <Border Background="#1A2D3C" BorderBrush="#00E5FF" BorderThickness="1" CornerRadius="4" Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding ActivePresetBadgeText}" FontSize="9" FontWeight="Bold" Foreground="#00E5FF"/>
                                 </Border>
                             </StackPanel>
                             <TextBlock Text="{Binding PlatformSummaryText, Mode=OneWay}" FontSize="11" Foreground="#78909C" TextTrimming="CharacterEllipsis"/>
@@ -240,10 +243,18 @@
 
                     <!-- Presets -->
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button Style="{StaticResource ModeBtn}" Content="AUTO" Click="Mode_Click" Tag="Auto"/>
-                        <Button Style="{StaticResource ModeBtn}" Content="SILENT" Click="Mode_Click" Tag="Silent"/>
-                        <Button Style="{StaticResource ModeBtn}" Content="BALANCED" Click="Mode_Click" Tag="Balanced"/>
-                        <Button Style="{StaticResource ModeBtn}" Content="CURVE" Click="Mode_Click" Tag="Curve"/>
+                        <Button Style="{StaticResource ModeBtn}" Content="AUTO" Click="Mode_Click" Tag="Auto"
+                                Background="{Binding AutoBtnBackground}" BorderBrush="{Binding AutoBtnBorder}"
+                                Foreground="{Binding AutoBtnForeground}" FontWeight="{Binding AutoBtnFontWeight}"/>
+                        <Button Style="{StaticResource ModeBtn}" Content="SILENT" Click="Mode_Click" Tag="Silent"
+                                Background="{Binding SilentBtnBackground}" BorderBrush="{Binding SilentBtnBorder}"
+                                Foreground="{Binding SilentBtnForeground}" FontWeight="{Binding SilentBtnFontWeight}"/>
+                        <Button Style="{StaticResource ModeBtn}" Content="BALANCED" Click="Mode_Click" Tag="Balanced"
+                                Background="{Binding BalancedBtnBackground}" BorderBrush="{Binding BalancedBtnBorder}"
+                                Foreground="{Binding BalancedBtnForeground}" FontWeight="{Binding BalancedBtnFontWeight}"/>
+                        <Button Style="{StaticResource ModeBtn}" Content="CURVE" Click="Mode_Click" Tag="Curve"
+                                Background="{Binding CurveBtnBackground}" BorderBrush="{Binding CurveBtnBorder}"
+                                Foreground="{Binding CurveBtnForeground}" FontWeight="{Binding CurveBtnFontWeight}"/>
                     </StackPanel>
 
                     <!-- Right Options & Turbo -->
@@ -258,7 +269,9 @@
 
                         <!-- Turbo Button -->
                         <Button Style="{StaticResource TurboBtn}" Width="78" Height="30"
-                                Content="🔥 TURBO" Click="Turbo_Click"/>
+                                Content="🔥 TURBO" Click="Turbo_Click"
+                                Background="{Binding TurboBtnBackground}" BorderBrush="{Binding TurboBtnBorder}"
+                                Foreground="{Binding TurboBtnForeground}"/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -400,9 +413,12 @@
                     <Grid Margin="0,0,0,8">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="Curve Profile:" FontSize="11" Foreground="#B0BEC5" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                            <Button Style="{StaticResource ChipBtn}" Content="Silent" Click="CurveProfile_Click" Tag="Silent"/>
-                            <Button Style="{StaticResource ChipBtn}" Content="Balanced" Click="CurveProfile_Click" Tag="Balanced"/>
-                            <Button Style="{StaticResource ChipBtn}" Content="Gaming" Click="CurveProfile_Click" Tag="Gaming"/>
+                            <Button Style="{StaticResource ChipBtn}" Content="Silent" Click="CurveProfile_Click" Tag="Silent"
+                                    Background="{Binding CurveSilentBtnBg}" BorderBrush="{Binding CurveSilentBtnBorder}" Foreground="{Binding CurveSilentBtnFg}"/>
+                            <Button Style="{StaticResource ChipBtn}" Content="Balanced" Click="CurveProfile_Click" Tag="Balanced"
+                                    Background="{Binding CurveBalancedBtnBg}" BorderBrush="{Binding CurveBalancedBtnBorder}" Foreground="{Binding CurveBalancedBtnFg}"/>
+                            <Button Style="{StaticResource ChipBtn}" Content="Gaming" Click="CurveProfile_Click" Tag="Gaming"
+                                    Background="{Binding CurveGamingBtnBg}" BorderBrush="{Binding CurveGamingBtnBorder}" Foreground="{Binding CurveGamingBtnFg}"/>
                             <TextBlock Text="{Binding CurrentCurvePreset, StringFormat='Active: {0}'}" FontSize="11" FontWeight="Bold" Foreground="#00E5FF" VerticalAlignment="Center" Margin="10,0,0,0"/>
                         </StackPanel>
 

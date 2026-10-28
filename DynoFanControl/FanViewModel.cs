@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
 using DynoFanControl.Hardware;
@@ -19,6 +20,22 @@ public class FanViewModel : INotifyPropertyChanged
     private static readonly SolidColorBrush ActiveTabText = new(Color.FromRgb(0, 229, 255));
     private static readonly SolidColorBrush InactiveTabText = new(Color.FromRgb(144, 164, 174));
 
+    // Preset button active/inactive states
+    private static readonly SolidColorBrush ModeActiveBg = new(Color.FromRgb(27, 45, 60));
+    private static readonly SolidColorBrush ModeInactiveBg = new(Color.FromRgb(30, 32, 38));
+    private static readonly SolidColorBrush ModeActiveBorder = new(Color.FromRgb(0, 229, 255));
+    private static readonly SolidColorBrush ModeInactiveBorder = new(Color.FromRgb(50, 54, 66));
+    private static readonly SolidColorBrush ModeActiveFg = new(Color.FromRgb(0, 229, 255));
+    private static readonly SolidColorBrush ModeInactiveFg = new(Color.FromRgb(236, 239, 241));
+
+    // Turbo button active/inactive states
+    private static readonly SolidColorBrush TurboActiveBg = new(Color.FromRgb(229, 57, 53));
+    private static readonly SolidColorBrush TurboInactiveBg = new(Color.FromRgb(45, 25, 25));
+    private static readonly SolidColorBrush TurboActiveBorder = new(Color.FromRgb(255, 82, 82));
+    private static readonly SolidColorBrush TurboInactiveBorder = new(Color.FromRgb(85, 35, 35));
+    private static readonly SolidColorBrush TurboActiveFg = new(Color.FromRgb(255, 255, 255));
+    private static readonly SolidColorBrush TurboInactiveFg = new(Color.FromRgb(239, 154, 154));
+
     static FanViewModel()
     {
         ActiveTabBg.Freeze();
@@ -27,6 +44,20 @@ public class FanViewModel : INotifyPropertyChanged
         InactiveTabBorder.Freeze();
         ActiveTabText.Freeze();
         InactiveTabText.Freeze();
+
+        ModeActiveBg.Freeze();
+        ModeInactiveBg.Freeze();
+        ModeActiveBorder.Freeze();
+        ModeInactiveBorder.Freeze();
+        ModeActiveFg.Freeze();
+        ModeInactiveFg.Freeze();
+
+        TurboActiveBg.Freeze();
+        TurboInactiveBg.Freeze();
+        TurboActiveBorder.Freeze();
+        TurboInactiveBorder.Freeze();
+        TurboActiveFg.Freeze();
+        TurboInactiveFg.Freeze();
     }
 
     private readonly DispatcherTimer _pollTimer;
@@ -47,7 +78,8 @@ public class FanViewModel : INotifyPropertyChanged
     private bool _coolBoost;
     private bool _turboActive;
 
-    private string _activeMode = "Auto"; // Auto, Silent, Balanced, Turbo, Curve, Custom
+    private string _activeMode = "Balanced"; // Auto, Silent, Balanced, Turbo, Curve, Custom
+    private string _lastNonTurboMode = "Balanced";
     private bool _syncFanCurves;
     private string _cpuCurvePreset = "Balanced";
     private string _gpuCurvePreset = "Balanced";
@@ -124,15 +156,23 @@ public class FanViewModel : INotifyPropertyChanged
         _coolBoost = _settings.CoolBoost;
         _overheatProtection = _settings.OverheatProtection;
         _overheatThreshold = _settings.OverheatThreshold;
-        _startWithWindows = StartupManager.IsStartupEnabled();
+        _startWithWindows = _settings.StartWithWindows;
         _startMinimized = _settings.StartMinimized;
         _closeToTray = _settings.CloseToTray;
-        _activeMode = _settings.ActivePreset;
+        _activeMode = _settings.ActivePreset ?? "Balanced";
         _syncFanCurves = _settings.SyncFanCurves;
         _cpuCurvePreset = _settings.CpuCurvePreset ?? "Balanced";
         _gpuCurvePreset = _settings.GpuCurvePreset ?? "Balanced";
         _cpuFanSpeed = _settings.CpuManualSpeed;
         _gpuFanSpeed = _settings.GpuManualSpeed;
+
+        if (_activeMode != "Turbo") _lastNonTurboMode = _activeMode;
+
+        // Automatically enforce Windows Startup registration if requested
+        if (_startWithWindows && !StartupManager.IsStartupEnabled())
+        {
+            StartupManager.SetStartup(true, _startMinimized);
+        }
 
         if (!string.IsNullOrEmpty(_settings.PreferredGpuId))
         {
@@ -325,10 +365,117 @@ public class FanViewModel : INotifyPropertyChanged
             {
                 _activeMode = value;
                 OnPropertyChanged();
+                NotifyPresetVisuals();
                 _settings.ActivePreset = value;
                 ConfigManager.Save(_settings);
             }
         }
+    }
+
+    public void NotifyPresetVisuals()
+    {
+        OnPropertyChanged(nameof(IsAutoActive));
+        OnPropertyChanged(nameof(IsSilentActive));
+        OnPropertyChanged(nameof(IsBalancedActive));
+        OnPropertyChanged(nameof(IsCurveActive));
+        OnPropertyChanged(nameof(IsCustomActive));
+        OnPropertyChanged(nameof(IsTurboActive));
+
+        OnPropertyChanged(nameof(AutoBtnBackground));
+        OnPropertyChanged(nameof(AutoBtnBorder));
+        OnPropertyChanged(nameof(AutoBtnForeground));
+        OnPropertyChanged(nameof(AutoBtnFontWeight));
+
+        OnPropertyChanged(nameof(SilentBtnBackground));
+        OnPropertyChanged(nameof(SilentBtnBorder));
+        OnPropertyChanged(nameof(SilentBtnForeground));
+        OnPropertyChanged(nameof(SilentBtnFontWeight));
+
+        OnPropertyChanged(nameof(BalancedBtnBackground));
+        OnPropertyChanged(nameof(BalancedBtnBorder));
+        OnPropertyChanged(nameof(BalancedBtnForeground));
+        OnPropertyChanged(nameof(BalancedBtnFontWeight));
+
+        OnPropertyChanged(nameof(CurveBtnBackground));
+        OnPropertyChanged(nameof(CurveBtnBorder));
+        OnPropertyChanged(nameof(CurveBtnForeground));
+        OnPropertyChanged(nameof(CurveBtnFontWeight));
+
+        OnPropertyChanged(nameof(TurboBtnBackground));
+        OnPropertyChanged(nameof(TurboBtnBorder));
+        OnPropertyChanged(nameof(TurboBtnForeground));
+
+        OnPropertyChanged(nameof(ActivePresetBadgeText));
+    }
+
+    public bool IsAutoActive => ActiveMode == "Auto";
+    public bool IsSilentActive => ActiveMode == "Silent";
+    public bool IsBalancedActive => ActiveMode == "Balanced";
+    public bool IsCurveActive => ActiveMode == "Curve";
+    public bool IsCustomActive => ActiveMode == "Custom";
+    public bool IsTurboActive => TurboActive || ActiveMode == "Turbo";
+
+    public Brush AutoBtnBackground => IsAutoActive ? ModeActiveBg : ModeInactiveBg;
+    public Brush AutoBtnBorder => IsAutoActive ? ModeActiveBorder : ModeInactiveBorder;
+    public Brush AutoBtnForeground => IsAutoActive ? ModeActiveFg : ModeInactiveFg;
+    public FontWeight AutoBtnFontWeight => IsAutoActive ? FontWeights.Bold : FontWeights.SemiBold;
+
+    public Brush SilentBtnBackground => IsSilentActive ? ModeActiveBg : ModeInactiveBg;
+    public Brush SilentBtnBorder => IsSilentActive ? ModeActiveBorder : ModeInactiveBorder;
+    public Brush SilentBtnForeground => IsSilentActive ? ModeActiveFg : ModeInactiveFg;
+    public FontWeight SilentBtnFontWeight => IsSilentActive ? FontWeights.Bold : FontWeights.SemiBold;
+
+    public Brush BalancedBtnBackground => IsBalancedActive ? ModeActiveBg : ModeInactiveBg;
+    public Brush BalancedBtnBorder => IsBalancedActive ? ModeActiveBorder : ModeInactiveBorder;
+    public Brush BalancedBtnForeground => IsBalancedActive ? ModeActiveFg : ModeInactiveFg;
+    public FontWeight BalancedBtnFontWeight => IsBalancedActive ? FontWeights.Bold : FontWeights.SemiBold;
+
+    public Brush CurveBtnBackground => IsCurveActive ? ModeActiveBg : ModeInactiveBg;
+    public Brush CurveBtnBorder => IsCurveActive ? ModeActiveBorder : ModeInactiveBorder;
+    public Brush CurveBtnForeground => IsCurveActive ? ModeActiveFg : ModeInactiveFg;
+    public FontWeight CurveBtnFontWeight => IsCurveActive ? FontWeights.Bold : FontWeights.SemiBold;
+
+    public Brush TurboBtnBackground => IsTurboActive ? TurboActiveBg : TurboInactiveBg;
+    public Brush TurboBtnBorder => IsTurboActive ? TurboActiveBorder : TurboInactiveBorder;
+    public Brush TurboBtnForeground => IsTurboActive ? TurboActiveFg : TurboInactiveFg;
+
+    public string ActivePresetBadgeText => ActiveMode switch
+    {
+        "Auto" => "⚙ BIOS AUTO",
+        "Silent" => "🌙 SILENT",
+        "Balanced" => "⚡ BALANCED",
+        "Turbo" => "🔥 MAX TURBO",
+        "Curve" => $"📈 CURVE ({CurrentCurvePreset})",
+        "Custom" => $"🛠 CUSTOM ({CpuFanSpeed}%/{GpuFanSpeed}%)",
+        _ => ActiveMode.ToUpperInvariant()
+    };
+
+    public Brush CurveSilentBtnBg => CurrentCurvePreset == "Silent" ? ModeActiveBg : InactiveTabBg;
+    public Brush CurveSilentBtnBorder => CurrentCurvePreset == "Silent" ? ModeActiveBorder : InactiveTabBorder;
+    public Brush CurveSilentBtnFg => CurrentCurvePreset == "Silent" ? ModeActiveFg : InactiveTabText;
+
+    public Brush CurveBalancedBtnBg => CurrentCurvePreset == "Balanced" ? ModeActiveBg : InactiveTabBg;
+    public Brush CurveBalancedBtnBorder => CurrentCurvePreset == "Balanced" ? ModeActiveBorder : InactiveTabBorder;
+    public Brush CurveBalancedBtnFg => CurrentCurvePreset == "Balanced" ? ModeActiveFg : InactiveTabText;
+
+    public Brush CurveGamingBtnBg => CurrentCurvePreset == "Gaming" ? ModeActiveBg : InactiveTabBg;
+    public Brush CurveGamingBtnBorder => CurrentCurvePreset == "Gaming" ? ModeActiveBorder : InactiveTabBorder;
+    public Brush CurveGamingBtnFg => CurrentCurvePreset == "Gaming" ? ModeActiveFg : InactiveTabText;
+
+    public void NotifyCurveProfileVisuals()
+    {
+        OnPropertyChanged(nameof(CurrentCurvePreset));
+        OnPropertyChanged(nameof(ActiveCurvePreset));
+        OnPropertyChanged(nameof(ActivePresetBadgeText));
+        OnPropertyChanged(nameof(CurveSilentBtnBg));
+        OnPropertyChanged(nameof(CurveSilentBtnBorder));
+        OnPropertyChanged(nameof(CurveSilentBtnFg));
+        OnPropertyChanged(nameof(CurveBalancedBtnBg));
+        OnPropertyChanged(nameof(CurveBalancedBtnBorder));
+        OnPropertyChanged(nameof(CurveBalancedBtnFg));
+        OnPropertyChanged(nameof(CurveGamingBtnBg));
+        OnPropertyChanged(nameof(CurveGamingBtnBorder));
+        OnPropertyChanged(nameof(CurveGamingBtnFg));
     }
 
     public bool SyncFanCurves
@@ -378,6 +525,7 @@ public class FanViewModel : INotifyPropertyChanged
                 }
 
                 if (ActiveMode == "Curve") EvaluateCurveMode();
+                NotifyCurveProfileVisuals();
             }
         }
     }
@@ -406,6 +554,7 @@ public class FanViewModel : INotifyPropertyChanged
                 }
 
                 if (ActiveMode == "Curve") EvaluateCurveMode();
+                NotifyCurveProfileVisuals();
             }
         }
     }
@@ -437,6 +586,7 @@ public class FanViewModel : INotifyPropertyChanged
                 OnPropertyChanged(nameof(GpuTabBackground));
                 OnPropertyChanged(nameof(GpuTabBorder));
                 OnPropertyChanged(nameof(GpuTabForeground));
+                NotifyCurveProfileVisuals();
             }
         }
     }
@@ -609,6 +759,7 @@ public class FanViewModel : INotifyPropertyChanged
 
     public void SliderDragCompleted(int fanIndex)
     {
+        ActiveMode = "Custom";
         if (fanIndex == 0)
         {
             _cpuDragging = false;
@@ -619,11 +770,11 @@ public class FanViewModel : INotifyPropertyChanged
             _gpuDragging = false;
             ApplyGpuSpeed();
         }
-        ActiveMode = "Custom";
     }
 
     public void SetMode(string mode)
     {
+        if (mode != "Turbo") _lastNonTurboMode = mode;
         ActiveMode = mode;
         TurboActive = mode == "Turbo";
 
@@ -708,9 +859,14 @@ public class FanViewModel : INotifyPropertyChanged
     public void ToggleTurbo()
     {
         if (ActiveMode == "Turbo")
-            SetMode("Auto");
+        {
+            SetMode(string.IsNullOrEmpty(_lastNonTurboMode) || _lastNonTurboMode == "Turbo" ? "Balanced" : _lastNonTurboMode);
+        }
         else
+        {
+            if (ActiveMode != "Turbo") _lastNonTurboMode = ActiveMode;
             SetMode("Turbo");
+        }
     }
 
     public void SetFixedSpeed(int fanIndex, int percent)
@@ -748,6 +904,7 @@ public class FanViewModel : INotifyPropertyChanged
         _settings.CpuManualSpeed = CpuFanSpeed;
         _settings.GpuManualSpeed = GpuFanSpeed;
         _settings.ActivePreset = ActiveMode;
+        _settings.StartWithWindows = StartWithWindows;
         ConfigManager.Save(_settings);
     }
 
@@ -767,6 +924,7 @@ public class FanViewModel : INotifyPropertyChanged
         {
             GpuCurvePreset = preset;
         }
+        NotifyCurveProfileVisuals();
     }
 
     private void LoadCpuCurvePreset(string presetName)

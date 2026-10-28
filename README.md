@@ -100,10 +100,12 @@ DynoFanControl implements a decoupled, 4-tier modular architecture:
 | **CUSTOM** | Direct manual speed sliders (0% to 100%) with optional linked synchronization. |
 
 ### Configuration & Settings
+- **Global Preset Persistence**: Selected preset modes (`AUTO`, `SILENT`, `BALANCED`, `CURVE`, `TURBO`, `CUSTOM`) and curve profiles are automatically persisted to global multi-tier storage (`%ProgramData%\DynoFanControl\config.json`, `%LocalAppData%\DynoFanControl\config.json`, and portable `config.json`). The chosen preset is retained across computer restarts and immediately highlighted in the UI and system tray.
+- **Visual Preset Status**: Top header displays a dynamic preset badge (e.g. `⚡ BALANCED`, `📈 CURVE (Gaming)`), while mode buttons visually highlight active states with glowing borders and accent colors.
+- **Dual-Redundancy Windows Auto-Start**: Automatically enabled by default. Configures Windows Task Scheduler with highest logon privileges (`/rl highest`) to ensure silent boot without UAC prompts, combined with an `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` backup.
 - **Target GPU Selection**: In multi-GPU systems (e.g. laptop APU + discrete GPU or multi-card desktops), select which GPU drives the GPU fan curve in the Settings modal (`⚙`).
 - **Independent vs. Synced Curves**: CPU and GPU curves operate independently by default. Enable `Sync CPU & GPU Curves` if you prefer unified fan speed ramping.
 - **Overheat Guard**: Configurable thermal trigger (75°C - 95°C) that automatically overrides manual settings to 100% cooling.
-- **Elevated Auto-Start**: Automatically configures a Windows Task Scheduler logon trigger with highest privileges (`/rl highest`) to ensure silent boot into system tray without UAC prompts.
 
 ---
 
