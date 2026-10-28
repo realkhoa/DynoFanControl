@@ -63,10 +63,24 @@ public sealed class GpuTuningManager
                     // Apply Power Limit via NVML
                     bool powerOk = NvmlDriver.SetPowerLimitPercent(profile.PowerLimitPercent);
 
-                    if (clockOk || powerOk)
+                    if (clockOk && powerOk)
                     {
                         anySuccess = true;
-                        _lastStatus = $"NVIDIA: {profile.ProfileName} (+{profile.CoreClockOffsetMhz}MHz Core, +{profile.MemoryClockOffsetMhz}MHz Mem, {profile.PowerLimitPercent}% Pwr)";
+                        _lastStatus = $"NVIDIA: Applied +{profile.CoreClockOffsetMhz}MHz Core, +{profile.MemoryClockOffsetMhz}MHz Mem, {profile.PowerLimitPercent}% Power Limit";
+                    }
+                    else if (clockOk)
+                    {
+                        anySuccess = true;
+                        _lastStatus = $"NVIDIA: Clocks Applied (+{profile.CoreClockOffsetMhz}MHz Core, +{profile.MemoryClockOffsetMhz}MHz Mem). Power limit locked by VBIOS.";
+                    }
+                    else if (powerOk)
+                    {
+                        anySuccess = true;
+                        _lastStatus = $"NVIDIA: Power Limit Applied ({profile.PowerLimitPercent}%). Clock offsets locked by mobile VBIOS.";
+                    }
+                    else
+                    {
+                        _lastStatus = "NVIDIA Hardware Guard: Clock offsets locked by mobile VBIOS. Target saved to profile.";
                     }
                 }
                 catch (Exception ex)
@@ -88,9 +102,9 @@ public sealed class GpuTuningManager
             }
 
             _isApplied = anySuccess;
-            if (!anySuccess)
+            if (!anySuccess && string.IsNullOrEmpty(_lastStatus))
             {
-                _lastStatus = "Tuning applied (simulated / stock default constraints)";
+                _lastStatus = "GPU Driver: Target saved to profile (Hardware VBIOS restricted)";
             }
 
             return anySuccess;

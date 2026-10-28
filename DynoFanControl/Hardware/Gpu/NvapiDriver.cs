@@ -17,11 +17,11 @@ public static class NvapiDriver
     // NVAPI Interface IDs
     private const uint ID_NvAPI_Initialize                      = 0x0150E828;
     private const uint ID_NvAPI_Unload                          = 0xD22BDD7E;
-    private const uint ID_NvAPI_EnumPhysicalGPUs                = 0xE34407F2;
+    private const uint ID_NvAPI_EnumPhysicalGPUs                = 0xE5AC921F;
     private const uint ID_NvAPI_GPU_GetFullName                 = 0xCEEE8E9F;
     private const uint ID_NvAPI_GPU_GetAllClockFrequencies      = 0xDCB616C3;
     private const uint ID_NvAPI_GPU_GetPstates20                = 0x6FF81213;
-    private const uint ID_NvAPI_GPU_SetPstates20                = 0x0F4DAE13;
+    private const uint ID_NvAPI_GPU_SetPstates20                = 0x0F4DAE6B;
     private const uint ID_NvAPI_GPU_ClientPowerPoliciesGetStatus= 0xAD131F37;
     private const uint ID_NvAPI_GPU_ClientPowerPoliciesSetStatus= 0x33C73588;
     private const uint ID_NvAPI_GPU_GetMemoryInfo               = 0x077F74F0;

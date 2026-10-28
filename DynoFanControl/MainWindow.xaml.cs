@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using DynoFanControl.Services;
+using DynoFanControl.Services.Automation;
 using DynoFanControl.ViewModels;
 
 namespace DynoFanControl;
@@ -224,6 +225,42 @@ public partial class MainWindow : Window
     {
         if (sender is Button b && b.Tag is string s && int.TryParse(s, out var slot))
             _vm.SaveTuningSlot(slot);
+    }
+
+    private void GameProfilesToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.IsGameProfilesOpen = !_vm.IsGameProfilesOpen;
+    }
+
+    private void CalibrationToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.IsCalibrationOpen = !_vm.IsCalibrationOpen;
+    }
+
+    private void CpuTuningToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.IsCpuTuningOpen = !_vm.IsCpuTuningOpen;
+    }
+
+    private void AddCurrentApp_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.AddCurrentAppRule("Turbo");
+    }
+
+    private void DeleteAppRule_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button b && b.DataContext is AppProfileRule rule)
+            _vm.RemoveAppRule(rule);
+    }
+
+    private void StartCalibration_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.StartFanCalibration();
+    }
+
+    private void CancelCalibration_Click(object sender, RoutedEventArgs e)
+    {
+        _vm.CancelFanCalibration();
     }
 
     private void TrayShow_Click(object sender, RoutedEventArgs e)

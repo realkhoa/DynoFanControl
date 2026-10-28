@@ -10,7 +10,11 @@ using DynoFanControl.Hardware.Gpu;
 using DynoFanControl.Hardware.Tuning;
 using DynoFanControl.Models;
 using DynoFanControl.Services;
+using DynoFanControl.Services.Automation;
+using DynoFanControl.Services.Calibration;
+using DynoFanControl.Services.Cpu;
 using DynoFanControl.Services.Osd;
+using DynoFanControl.Services.Power;
 
 namespace DynoFanControl;
 
@@ -104,7 +108,15 @@ public class FanViewModel : INotifyPropertyChanged
     private bool _isTuningOpen;
     private bool _isMonitorOpen;
     private bool _isOsdOpen;
+    private bool _isGameProfilesOpen;
+    private bool _isCalibrationOpen;
+    private bool _isCpuTuningOpen;
     private string _statusText = "Initializing...";
+    private string _preGameMode = "Balanced";
+    private bool _preGameOsd;
+
+    // Advanced Features: Collections
+    public ObservableCollection<AppProfileRule> AppProfileRules { get; } = new();
 
     // MSI Afterburner Suite: GPU Clock & Voltage Tuning Fields
     private int _coreClockOffset;
@@ -249,6 +261,35 @@ public class FanViewModel : INotifyPropertyChanged
             }
             catch { }
         }
+
+        // Initialize Per-Game Automation Rules
+        foreach (var r in _settings.AppProfileRules)
+            AppProfileRules.Add(r);
+
+        ProcessWatcherService.Instance.RuleActivated += OnGameRuleActivated;
+        ProcessWatcherService.Instance.RuleDeactivated += OnGameRuleDeactivated;
+
+        // Initialize Battery-Aware Power Listener
+        BatteryMonitorService.Instance.PowerStateChanged += OnPowerStateChanged;
+
+        // Initialize CPU Thermal & Power Tuning
+        CpuPowerTuningService.Instance.Initialize();
+        if (_settings.EnableCpuThermalClamping)
+        {
+            CpuPowerTuningService.Instance.ApplyLimits(_settings.CpuMaxTempTarget, _settings.CpuPowerLimitWatts);
+        }
+
+        // Initialize Calibration Listeners
+        FanCalibrationService.Instance.ProgressUpdated += (pct, msg) =>
+        {
+            OnPropertyChanged(nameof(CalibrationProgress));
+            OnPropertyChanged(nameof(CalibrationStatus));
+        };
+        FanCalibrationService.Instance.CalibrationCompleted += (ok, msg) =>
+        {
+            OnPropertyChanged(nameof(IsCalibrating));
+            OnPropertyChanged(nameof(CalibrationStatus));
+        };
 
         // 2. Initialize hardware
         FanHardwareManager.Instance.Initialize();
@@ -830,6 +871,154 @@ public class FanViewModel : INotifyPropertyChanged
         set { if (_isOsdOpen != value) { _isOsdOpen = value; OnPropertyChanged(); } }
     }
 
+    public bool IsGameProfilesOpen
+    {
+        get => _isGameProfilesOpen;
+        set { if (_isGameProfilesOpen != value) { _isGameProfilesOpen = value; OnPropertyChanged(); } }
+    }
+
+    public bool IsCalibrationOpen
+    {
+        get => _isCalibrationOpen;
+        set { if (_isCalibrationOpen != value) { _isCalibrationOpen = value; OnPropertyChanged(); } }
+    }
+
+    public bool IsCpuTuningOpen
+    {
+        get => _isCpuTuningOpen;
+        set { if (_isCpuTuningOpen != value) { _isCpuTuningOpen = value; OnPropertyChanged(); } }
+    }
+
+    // Feature A: Per-Game Profiles
+    public bool EnableAppProfiles
+    {
+        get => _settings.EnableAppProfiles;
+        set
+        {
+            if (_settings.EnableAppProfiles != value)
+            {
+                _settings.EnableAppProfiles = value;
+                OnPropertyChanged();
+                _settings.EnableAppProfiles = value;
+                ConfigManager.Save(_settings);
+            }
+        }
+    }
+
+    public string ActiveGameRuleText => ProcessWatcherService.Instance.IsInGameMode && ProcessWatcherService.Instance.ActiveMatchedRule != null
+        ? $"🎮 Game Active: {ProcessWatcherService.Instance.ActiveMatchedRule.DisplayName}"
+        : "Desktop / Standard";
+
+    // Feature D: Battery-Aware Switching
+    public bool EnableBatterySwitching
+    {
+        get => _settings.EnableBatterySwitching;
+        set
+        {
+            if (_settings.EnableBatterySwitching != value)
+            {
+                _settings.EnableBatterySwitching = value;
+                OnPropertyChanged();
+                ConfigManager.Save(_settings);
+            }
+        }
+    }
+
+    public string BatteryMode
+    {
+        get => _settings.BatteryMode;
+        set
+        {
+            if (_settings.BatteryMode != value)
+            {
+                _settings.BatteryMode = value;
+                OnPropertyChanged();
+                ConfigManager.Save(_settings);
+            }
+        }
+    }
+
+    public string AcMode
+    {
+        get => _settings.AcMode;
+        set
+        {
+            if (_settings.AcMode != value)
+            {
+                _settings.AcMode = value;
+                OnPropertyChanged();
+                ConfigManager.Save(_settings);
+            }
+        }
+    }
+
+    public string PowerSourceStatusText => BatteryMonitorService.Instance.PowerSourceText;
+
+    // Feature C: CPU Thermal & Power Clamping
+    public bool EnableCpuThermalClamping
+    {
+        get => _settings.EnableCpuThermalClamping;
+        set
+        {
+            if (_settings.EnableCpuThermalClamping != value)
+            {
+                _settings.EnableCpuThermalClamping = value;
+                OnPropertyChanged();
+                _settings.EnableCpuThermalClamping = value;
+                ConfigManager.Save(_settings);
+
+                if (value)
+                    ApplyCpuClamping();
+                else
+                    ResetCpuClamping();
+            }
+        }
+    }
+
+    public int CpuMaxTempTarget
+    {
+        get => _settings.CpuMaxTempTarget;
+        set
+        {
+            var clamped = Math.Clamp(value, 65, 95);
+            if (_settings.CpuMaxTempTarget != clamped)
+            {
+                _settings.CpuMaxTempTarget = clamped;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(CpuMaxTempTargetText));
+                ConfigManager.Save(_settings);
+                if (EnableCpuThermalClamping) ApplyCpuClamping();
+            }
+        }
+    }
+    public string CpuMaxTempTargetText => $"{CpuMaxTempTarget}°C";
+
+    public int CpuPowerLimitWatts
+    {
+        get => _settings.CpuPowerLimitWatts;
+        set
+        {
+            var clamped = Math.Clamp(value, 15, 95);
+            if (_settings.CpuPowerLimitWatts != clamped)
+            {
+                _settings.CpuPowerLimitWatts = clamped;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(CpuPowerLimitWattsText));
+                ConfigManager.Save(_settings);
+                if (EnableCpuThermalClamping) ApplyCpuClamping();
+            }
+        }
+    }
+    public string CpuPowerLimitWattsText => $"{CpuPowerLimitWatts}W";
+
+    public string CpuClampingStatusText => CpuPowerTuningService.Instance.StatusMessage;
+
+    // Feature F: Fan Acoustics & Calibration
+    public bool IsCalibrating => FanCalibrationService.Instance.IsRunning;
+    public int CalibrationProgress => FanCalibrationService.Instance.CurrentProgressPercent;
+    public string CalibrationStatus => FanCalibrationService.Instance.CurrentStatus;
+    public ObservableCollection<CalibrationResultPoint> CalibrationResults => FanCalibrationService.Instance.Results;
+
     // MSI Afterburner Suite: GPU Tuning Properties
     public int CoreClockOffset
     {
@@ -1371,6 +1560,16 @@ public class FanViewModel : INotifyPropertyChanged
             RtssStatusText = "Overlay Disabled";
         }
 
+        // Feature A: Check Foreground Game/Application Watcher
+        if (EnableAppProfiles)
+        {
+            ProcessWatcherService.Instance.CheckForegroundProcess(AppProfileRules);
+        }
+
+        // Feature D: Poll Battery Power Source
+        BatteryMonitorService.Instance.PollPowerStatus();
+        OnPropertyChanged(nameof(PowerSourceStatusText));
+
         // Overheat Protection Watchdog
         if (OverheatProtection && PeakTemp >= OverheatThreshold)
         {
@@ -1505,6 +1704,115 @@ public class FanViewModel : INotifyPropertyChanged
         ActiveTuningSlot = slotIndex;
         TuningStatusText = $"Loaded & Applied Profile Slot [{slotIndex}]";
     }
+
+    #region Automation & Advanced Actions
+
+    private void OnGameRuleActivated(AppProfileRule rule)
+    {
+        _preGameMode = ActiveMode;
+        _preGameOsd = OsdEnabled;
+        SetMode(rule.TargetMode);
+        if (rule.TargetMode == "Curve" && !string.IsNullOrEmpty(rule.CurvePreset))
+        {
+            SetCurvePreset(rule.CurvePreset);
+        }
+        if (rule.EnableOsd)
+        {
+            OsdEnabled = true;
+        }
+        StatusText = $"🎮 Game Mode Engaged: {rule.DisplayName} ➔ {rule.TargetMode}";
+        OnPropertyChanged(nameof(ActiveGameRuleText));
+    }
+
+    private void OnGameRuleDeactivated()
+    {
+        StatusText = $"Desktop Focus: Restoring {_preGameMode}";
+        SetMode(_preGameMode);
+        OsdEnabled = _preGameOsd;
+        OnPropertyChanged(nameof(ActiveGameRuleText));
+    }
+
+    private void OnPowerStateChanged(bool isOnAc, int batteryPercent)
+    {
+        if (!EnableBatterySwitching) return;
+
+        if (isOnAc)
+        {
+            SetMode(string.IsNullOrEmpty(AcMode) ? "Balanced" : AcMode);
+            StatusText = $"⚡ AC Connected ({batteryPercent}%) ➔ {AcMode}";
+        }
+        else
+        {
+            SetMode(string.IsNullOrEmpty(BatteryMode) ? "Silent" : BatteryMode);
+            StatusText = $"🔋 Running on Battery ({batteryPercent}%) ➔ {BatteryMode}";
+        }
+        OnPropertyChanged(nameof(PowerSourceStatusText));
+    }
+
+    public void AddCurrentAppRule(string targetMode)
+    {
+        string currentExe = ProcessWatcherService.GetActiveProcessName();
+        if (string.IsNullOrEmpty(currentExe) || currentExe == "dynofancontrol" || currentExe == "fanctl")
+        {
+            StatusText = "Switch focus to your target game window first.";
+            return;
+        }
+
+        var existing = AppProfileRules.FirstOrDefault(r => string.Equals(r.ProcessName, currentExe, StringComparison.OrdinalIgnoreCase));
+        if (existing != null)
+        {
+            existing.TargetMode = targetMode;
+            StatusText = $"Updated rule: {currentExe} ➔ {targetMode}";
+        }
+        else
+        {
+            var rule = new AppProfileRule(currentExe, currentExe.ToUpperInvariant(), targetMode, "Gaming", true);
+            AppProfileRules.Add(rule);
+            _settings.AppProfileRules.Add(rule);
+            ConfigManager.Save(_settings);
+            StatusText = $"Added game rule: {currentExe} ➔ {targetMode}";
+        }
+    }
+
+    public void RemoveAppRule(AppProfileRule rule)
+    {
+        AppProfileRules.Remove(rule);
+        _settings.AppProfileRules.Remove(rule);
+        ConfigManager.Save(_settings);
+        StatusText = $"Removed rule for {rule.DisplayName}";
+    }
+
+    public void ApplyCpuClamping()
+    {
+        CpuPowerTuningService.Instance.ApplyLimits(CpuMaxTempTarget, CpuPowerLimitWatts);
+        OnPropertyChanged(nameof(CpuClampingStatusText));
+        StatusText = CpuPowerTuningService.Instance.StatusMessage;
+    }
+
+    public void ResetCpuClamping()
+    {
+        CpuPowerTuningService.Instance.ResetLimits();
+        OnPropertyChanged(nameof(CpuClampingStatusText));
+        StatusText = "CPU thermal clamping disabled";
+    }
+
+    public async void StartFanCalibration()
+    {
+        if (IsCalibrating) return;
+        OnPropertyChanged(nameof(IsCalibrating));
+        await FanCalibrationService.Instance.StartCalibrationAsync(ActiveMode, CpuFanSpeed, GpuFanSpeed);
+        OnPropertyChanged(nameof(IsCalibrating));
+        OnPropertyChanged(nameof(CalibrationStatus));
+    }
+
+    public void CancelFanCalibration()
+    {
+        FanCalibrationService.Instance.Cancel();
+        OnPropertyChanged(nameof(IsCalibrating));
+        OnPropertyChanged(nameof(CalibrationStatus));
+    }
+
+    #endregion
 
     #endregion
 

@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text.Json;
 using DynoFanControl.Hardware.Tuning;
+using DynoFanControl.Services.Automation;
 using DynoFanControl.Services.Osd;
 
 namespace DynoFanControl;
@@ -73,6 +74,27 @@ public class AppSettings
     public GpuTuningProfile CurrentTuningProfile { get; set; } = GpuTuningProfile.Stock;
     public bool ApplyTuningAtStartup { get; set; } = false;
     public OsdSettings Osd { get; set; } = new();
+
+    // Per-App / Per-Game Automation
+    public bool EnableAppProfiles { get; set; } = true;
+    public List<AppProfileRule> AppProfileRules { get; set; } = new()
+    {
+        new("cs2", "Counter-Strike 2", "Turbo", "Gaming", true),
+        new("dota2", "Dota 2", "Turbo", "Gaming", true),
+        new("valorant", "Valorant", "Curve", "Gaming", true),
+        new("cyberpunk2077", "Cyberpunk 2077", "Turbo", "Gaming", true),
+        new("genshinimpact", "Genshin Impact", "Curve", "Gaming", false)
+    };
+
+    // Battery-Aware Smart Switching
+    public bool EnableBatterySwitching { get; set; } = true;
+    public string BatteryMode { get; set; } = "Silent";
+    public string AcMode { get; set; } = "Balanced";
+
+    // CPU Thermal & Power Clamping
+    public bool EnableCpuThermalClamping { get; set; } = false;
+    public int CpuMaxTempTarget { get; set; } = 85;
+    public int CpuPowerLimitWatts { get; set; } = 45;
 }
 
 public static class ConfigManager
