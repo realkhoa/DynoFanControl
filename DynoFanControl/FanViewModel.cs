@@ -191,7 +191,7 @@ public class FanViewModel : INotifyPropertyChanged
             if (!string.IsNullOrWhiteSpace(p.Model) && p.Model != "Unknown")
             {
                 var mfg = (!string.IsNullOrWhiteSpace(p.Manufacturer) && p.Manufacturer != "Unknown" && !p.Model.Contains(p.Manufacturer, StringComparison.OrdinalIgnoreCase))
-                    ? $"{p.Manufacturer} "
+                    ? $"{FormatManufacturer(p.Manufacturer)} "
                     : "";
                 name = $"{mfg}{p.Model}";
             }
@@ -204,6 +204,15 @@ public class FanViewModel : INotifyPropertyChanged
                 ? $"DynoFanControl — {name}"
                 : "DynoFanControl — Universal Fan Control";
         }
+    }
+
+    private static string FormatManufacturer(string raw)
+    {
+        if (raw.Equals("LENOVO", StringComparison.OrdinalIgnoreCase)) return "Lenovo";
+        if (raw.StartsWith("ASUSTeK", StringComparison.OrdinalIgnoreCase)) return "ASUS";
+        if (raw.Contains("Micro-Star", StringComparison.OrdinalIgnoreCase)) return "MSI";
+        if (raw.Equals("Hewlett-Packard", StringComparison.OrdinalIgnoreCase)) return "HP";
+        return raw;
     }
 
     public string CpuModelName

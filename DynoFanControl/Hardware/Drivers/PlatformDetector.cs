@@ -51,6 +51,57 @@ public static class PlatformDetector
             }
             catch { }
 
+            // 1.5 Query Win32_ComputerSystemProduct (Critical for Lenovo Legion/LOQ/IdeaPad to obtain commercial branding)
+            try
+            {
+                using var searcher = new ManagementObjectSearcher("SELECT Name, Version, Vendor FROM Win32_ComputerSystemProduct");
+                foreach (var obj in searcher.Get())
+                {
+                    var prodName = (obj["Name"]?.ToString() ?? "").Trim();
+                    var prodVersion = (obj["Version"]?.ToString() ?? "").Trim();
+                    var prodVendor = (obj["Vendor"]?.ToString() ?? "").Trim();
+
+                    if (string.IsNullOrWhiteSpace(profile.Manufacturer) || profile.Manufacturer == "Unknown")
+                    {
+                        if (!string.IsNullOrWhiteSpace(prodVendor))
+                            profile.Manufacturer = prodVendor;
+                    }
+
+                    // On Lenovo, Win32_ComputerSystemProduct.Version contains "Legion 5 15ACH6",
+                    // while Win32_ComputerSystem.Model is an MTM code like "82JU".
+                    // Prioritize friendlier product branding:
+                    string[] brandingKeywords = ["Legion", "LOQ", "IdeaPad", "ThinkPad", "Nitro", "Predator", "ROG", "TUF", "Alienware", "OMEN", "Victus"];
+                    bool matchedBranding = false;
+
+                    foreach (var kw in brandingKeywords)
+                    {
+                        if (prodVersion.Contains(kw, StringComparison.OrdinalIgnoreCase))
+                        {
+                            profile.Model = prodVersion;
+                            matchedBranding = true;
+                            break;
+                        }
+                        if (prodName.Contains(kw, StringComparison.OrdinalIgnoreCase))
+                        {
+                            profile.Model = prodName;
+                            matchedBranding = true;
+                            break;
+                        }
+                    }
+
+                    if (!matchedBranding && (string.IsNullOrWhiteSpace(profile.Model) || profile.Model == "Unknown"))
+                    {
+                        if (!string.IsNullOrWhiteSpace(prodName))
+                            profile.Model = prodName;
+                        else if (!string.IsNullOrWhiteSpace(prodVersion))
+                            profile.Model = prodVersion;
+                    }
+
+                    break;
+                }
+            }
+            catch { }
+
             // 2. Query Win32_BaseBoard
             try
             {
